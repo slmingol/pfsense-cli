@@ -18,6 +18,7 @@
 # Get help (list all available commands):
 #   pfsense help                                                      # Show all make targets
 #   pfsense cli-help                                                  # Show CLI --help output
+#   pfsense logo                                                      # Display ASCII logo
 #
 # Complete Service Deployment (DNS + HAProxy):
 #   pfsense add-service ALIAS=myapp PORT=3000 DESC="My Application"

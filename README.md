@@ -1,4 +1,14 @@
-# pfSense DNS & HAProxy CLI
+# pfSense CLI
+
+```
+    ____  ______ ____                            __________    ____
+   / __ \/ ____// __ \___  ____  ________       / ____/ /   /  _/
+  / /_/ / /_   / / / / _ \/ __ \/ ___/ _ \     / /   / /    / /  
+ / ____/ __/  / /_/ /  __/ / / (__  )  __/    / /___/ /____/ /   
+/_/   /_/     \____/\___/_/ /_/____/\___/     \____/_____/___/   
+                                                                  
+         DNS & HAProxy Management made simple
+```
 
 [![CI](https://github.com/slmingol/pfsense-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/slmingol/pfsense-cli/actions/workflows/ci.yml)
 [![Release](https://github.com/slmingol/pfsense-cli/actions/workflows/release.yml/badge.svg)](https://github.com/slmingol/pfsense-cli/actions/workflows/release.yml)

@@ -3,13 +3,37 @@
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias } = require('./lib/dns');
 const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute } = require('./lib/haproxy');
+const fs = require('fs');
+const path = require('path');
+const packageJson = require('./package.json');
 
 const program = new Command();
 
 program
   .name('pfsense')
   .description('CLI tool to manage DNS and HAProxy configuration in pfSense')
-  .version('1.0.0');
+  .version(packageJson.version);
+
+// Logo command
+program
+  .command('logo')
+  .description('Display the pfSense CLI logo')
+  .action(() => {
+    try {
+      const logoPath = path.join(__dirname, '.logo');
+      if (fs.existsSync(logoPath)) {
+        const logo = fs.readFileSync(logoPath, 'utf8');
+        console.log(logo);
+        console.log(`Version: ${packageJson.version}`);
+        console.log(`License: ${packageJson.license}`);
+        console.log(`Repository: ${packageJson.repository?.url || 'N/A'}\n`);
+      } else {
+        console.log('Logo file not found');
+      }
+    } catch (e) {
+      console.error('Error displaying logo:', e.message);
+    }
+  });
 
 // List command
 program
