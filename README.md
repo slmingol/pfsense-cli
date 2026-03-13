@@ -107,25 +107,25 @@ This displays all commands with their required parameters, plus usage examples.
 The easiest way to deploy a new service with DNS and HAProxy configured:
 
 ```bash
-make add-service ALIAS=jitterbox-rocks PORT=5431 DESC="Jitterbox Rocks - https://github.com/slmingol/jitterbox-rocks"
+make add-service ALIAS=myapp PORT=3000 DESC="My Application"
 ```
 
 This single command:
-1. ✅ Creates DNS alias `jitterbox-rocks.bub.lan` → `docker-host-01-svcs.bub.lan` (backend resolution)
-2. ✅ Creates DNS alias `jitterbox-rocks.lamolabs.org` → `lamolabs-svcs.lamolabs.org` (frontend access)
-3. ✅ Creates HAProxy backend `jitterbox-rocks` → `jitterbox-rocks.bub.lan:5431`
-4. ✅ Adds frontend ACL/Action: `jitterbox-rocks.lamolabs.org` → routes to `jitterbox-rocks` backend
+1. ✅ Creates DNS alias `myapp.example.local` → `docker-host.example.local` (backend resolution)
+2. ✅ Creates DNS alias `myapp.example.com` → `frontend.example.com` (frontend access)
+3. ✅ Creates HAProxy backend `myapp` → `myapp.example.local:3000`
+4. ✅ Adds frontend ACL/Action: `myapp.example.com` → routes to `myapp` backend
 
-**Result:** Service accessible at `https://jitterbox-rocks.lamolabs.org`
+**Result:** Service accessible at `https://myapp.example.com`
 
 **Traffic Flow:**
 ```
-User → https://jitterbox-rocks.lamolabs.org
-  ↓ DNS resolves to 192.168.7.1 (HAProxy frontend)
+User → https://myapp.example.com
+  ↓ DNS resolves to 192.168.1.1 (HAProxy frontend)
   ↓ HAProxy HomePrivateServers frontend matches ACL
-  ↓ Routes to jitterbox-rocks backend
-  ↓ Backend connects to jitterbox-rocks.bub.lan:5431
-  ↓ DNS resolves to 192.168.7.42:5431 (actual service)
+  ↓ Routes to myapp backend
+  ↓ Backend connects to myapp.example.local:3000
+  ↓ DNS resolves to 192.168.1.100:3000 (actual service)
 ```
 
 ### DNS Management
@@ -149,7 +149,7 @@ make dns-alias-add HOST=myserver DOMAIN=local.lan ALIAS=www ALIAS_DOMAIN=local.l
 # Delete an alias
 make dns-alias-delete HOST=myserver DOMAIN=local.lan ALIAS=www ALIAS_DOMAIN=local.lan
 
-# Add alias to both bub.lan and lamolabs.org hosts
+# Add alias to both internal and external domains
 make add-dual-alias ALIAS=myservice DESC="My service description"
 ```
 
@@ -160,7 +160,7 @@ make add-dual-alias ALIAS=myservice DESC="My service description"
 make haproxy-list
 
 # Add a backend with server
-make haproxy-add NAME=myapp SERVER=myapp.bub.lan PORT=8080
+make haproxy-add NAME=myapp SERVER=myapp.example.local PORT=8080
 
 # Delete a backend
 make haproxy-delete NAME=myapp
@@ -175,7 +175,7 @@ Frontend routes connect hostnames to backends using ACLs and actions:
 docker-compose run --rm pfsense-cli haproxy:route-add \
   --frontend HomePrivateServers \
   --acl myapp \
-  --hostname myapp.lamolabs.org \
+  --hostname myapp.example.com \
   --backend myapp
 
 # Delete frontend route
@@ -206,15 +206,15 @@ docker-compose run --rm pfsense-cli alias:add \
 docker-compose run --rm pfsense-cli haproxy:list
 docker-compose run --rm pfsense-cli haproxy:add \
   --name myapp \
-  --server-name myapp.bub.lan \
-  --server-address myapp.bub.lan \
+  --server-name myapp.example.local \
+  --server-address myapp.example.local \
   --server-port 8080
 
 # HAProxy frontend routes
 docker-compose run --rm pfsense-cli haproxy:route-add \
   --frontend HomePrivateServers \
   --acl myapp \
-  --hostname myapp.lamolabs.org \
+  --hostname myapp.example.com \
   --backend myapp
 ```
 
@@ -222,23 +222,23 @@ docker-compose run --rm pfsense-cli haproxy:route-add \
 
 ### DNS Strategy
 
-- **`.bub.lan` domain**: Internal DNS resolution for backend servers
-  - Example: `jitterbox-rocks.bub.lan` → `192.168.7.42:5431`
+- **`.example.local` domain**: Internal DNS resolution for backend servers
+  - Example: `myapp.example.local` → `192.168.1.100:3000`
   - Used by HAProxy backends to reach actual services
   - Not exposed to end users
 
-- **`.lamolabs.org` domain**: Public-facing frontend access
-  - Example: `jitterbox-rocks.lamolabs.org` → `192.168.7.1` (HAProxy)
+- **`.example.com` domain**: Public-facing frontend access
+  - Example: `myapp.example.com` → `192.168.1.1` (HAProxy)
   - Used by end users to access services
   - Routed through HAProxy for load balancing, SSL termination, etc.
 
 ### HAProxy Configuration
 
 - **Backends**: Define where traffic goes (server + port)
-  - Uses `.bub.lan` hostnames to resolve to actual service IPs
+  - Uses `.example.local` hostnames to resolve to actual service IPs
   
 - **Frontend**: `HomePrivateServers` (main frontend)
-  - **ACLs**: Match incoming hostnames (e.g., `jitterbox-rocks.lamolabs.org`)
+  - **ACLs**: Match incoming hostnames (e.g., `myapp.example.com`)
   - **Actions**: Route matched traffic to specific backends
 
 ### Complete Workflow Example
@@ -248,12 +248,12 @@ make add-service ALIAS=myapp PORT=3000 DESC="My Application"
 ```
 
 Creates:
-1. **DNS**: `myapp.bub.lan` → `192.168.7.42` (backend resolution)
-2. **DNS**: `myapp.lamolabs.org` → `192.168.7.1` (frontend access)
-3. **HAProxy Backend**: `myapp` → connects to `myapp.bub.lan:3000`
-4. **HAProxy Frontend**: Routes `myapp.lamolabs.org` → `myapp` backend
+1. **DNS**: `myapp.example.local` → `192.168.1.100` (backend resolution)
+2. **DNS**: `myapp.example.com` → `192.168.1.1` (frontend access)
+3. **HAProxy Backend**: `myapp` → connects to `myapp.example.local:3000`
+4. **HAProxy Frontend**: Routes `myapp.example.com` → `myapp` backend
 
-User accesses `https://myapp.lamolabs.org` → routed through HAProxy → reaches service at `192.168.7.42:3000`
+User accesses `https://myapp.example.com` → routed through HAProxy → reaches service at `192.168.1.100:3000`
 
 ## Helper Alias
 
@@ -262,14 +262,14 @@ User accesses `https://myapp.lamolabs.org` → routed through HAProxy → reache
 Source the provided setup script:
 
 ```bash
-source /Users/smingolelli/dev/projects/pfsense-cli/setup-alias.sh
+source /path/to/pfsense-cli/setup-alias.sh
 ```
 
 Or add it permanently to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 # pfSense CLI
-source /Users/smingolelli/dev/projects/pfsense-cli/setup-alias.sh
+source /path/to/pfsense-cli/setup-alias.sh
 ```
 
 ### Manual Setup
@@ -277,7 +277,7 @@ source /Users/smingolelli/dev/projects/pfsense-cli/setup-alias.sh
 Alternatively, add this alias directly:
 
 ```bash
-alias pfsense='make -C /Users/smingolelli/dev/projects/pfsense-cli'
+alias pfsense='make -C /path/to/pfsense-cli'
 ```
 
 ### Using the Alias
@@ -347,12 +347,12 @@ NODE_NO_WARNINGS=1
 - Review HAProxy logs in pfSense
 
 ### Service Not Accessible
-1. Test DNS resolution: `nslookup jitterbox-rocks.lamolabs.org`
-2. Verify DNS entry exists: `make dns-list | grep jitterbox-rocks`
-3. Verify HAProxy backend: `make haproxy-list | grep jitterbox-rocks`
+1. Test DNS resolution: `nslookup myapp.example.com`
+2. Verify DNS entry exists: `make dns-list | grep myapp`
+3. Verify HAProxy backend: `make haproxy-list | grep myapp`
 4. Check frontend routing in pfSense UI
-5. Test backend connectivity from pfSense: `curl http://jitterbox-rocks.bub.lan:5431`
-6. Verify service is running on port 5431 at 192.168.7.42
+5. Test backend connectivity from pfSense: `curl http://myapp.example.local:3000`
+6. Verify service is running on port 3000 at 192.168.1.100
 
 ## Development
 

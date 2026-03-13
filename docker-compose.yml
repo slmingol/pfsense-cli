@@ -4,6 +4,9 @@ services:
     container_name: pfsense-cli
     env_file:
       - .env
+    ports:
+      - "5431:5431"  # frontend
+      - "5432:5432"  # backend
     volumes:
       - .:/app
       - /app/node_modules
