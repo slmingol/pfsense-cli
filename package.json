@@ -1,6 +1,6 @@
 {
   "name": "pfsense-cli",
-  "version": "0.0.0-development",
+  "version": "1.0.0",
   "description": "CLI tool to manage DNS and HAProxy configuration in pfSense",
   "main": "cli.js",
   "bin": {
@@ -16,7 +16,14 @@
     "type": "git",
     "url": "https://github.com/slmingol/pfsense-cli.git"
   },
-  "keywords": ["pfsense", "dns", "haproxy", "cli", "network", "automation"],
+  "keywords": [
+    "pfsense",
+    "dns",
+    "haproxy",
+    "cli",
+    "network",
+    "automation"
+  ],
   "author": "slmingol",
   "license": "MIT",
   "dependencies": {
