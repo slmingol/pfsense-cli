@@ -1,3 +1,10 @@
+## [1.0.4](https://github.com/slmingol/pfsense-cli/compare/v1.0.3...v1.0.4) (2026-03-13)
+
+
+### Documentation
+
+* switch copilot instructions to podman command examples ([c0b480a](https://github.com/slmingol/pfsense-cli/commit/c0b480a19139603f03bbf2c54ab8e84d78006099))
+
 ## [1.0.3](https://github.com/slmingol/pfsense-cli/compare/v1.0.2...v1.0.3) (2026-03-13)
 
 
