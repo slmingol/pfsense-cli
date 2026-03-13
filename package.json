@@ -1,6 +1,6 @@
 {
   "name": "pfsense-cli",
-  "version": "1.0.2",
+  "version": "1.0.3",
   "description": "CLI tool to manage DNS and HAProxy configuration in pfSense",
   "main": "cli.js",
   "bin": {

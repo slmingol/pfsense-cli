@@ -1,3 +1,10 @@
+## [1.0.3](https://github.com/slmingol/pfsense-cli/compare/v1.0.2...v1.0.3) (2026-03-13)
+
+
+### Code Refactoring
+
+* consolidate top-level directory structure ([fe2b313](https://github.com/slmingol/pfsense-cli/commit/fe2b313fcf56e976420086a43f356bc2e7769335))
+
 ## [1.0.2](https://github.com/slmingol/pfsense-cli/compare/v1.0.1...v1.0.2) (2026-03-13)
 
 
