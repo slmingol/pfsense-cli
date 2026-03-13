@@ -48,7 +48,7 @@ A Docker-based CLI tool to manage DNS entries and HAProxy configuration in pfSen
    /etc/rc.restart_webgui
    ```
    
-   📖 **See [INSTALL_API.md](INSTALL_API.md) for detailed installation instructions**
+   📖 **See [INSTALL_API.md](docs/INSTALL_API.md) for detailed installation instructions**
 
 2. **Enable pfSense API**
    - In pfSense, go to System > API
@@ -74,7 +74,7 @@ A Docker-based CLI tool to manage DNS entries and HAProxy configuration in pfSen
 
 5. **Set up shell alias (optional but recommended)**
    ```bash
-   source setup-alias.sh
+   source scripts/setup-alias.sh
    # Or add to ~/.bashrc or ~/.zshrc for permanent setup
    ```
 
@@ -263,14 +263,14 @@ User accesses `https://myapp.example.com` → routed through HAProxy → reaches
 Source the provided setup script:
 
 ```bash
-source /path/to/pfsense-cli/setup-alias.sh
+source /path/to/pfsense-cli/scripts/setup-alias.sh
 ```
 
 Or add it permanently to your `~/.bashrc` or `~/.zshrc`:
 
 ```bash
 # pfSense CLI
-source /path/to/pfsense-cli/setup-alias.sh
+source /path/to/pfsense-cli/scripts/setup-alias.sh
 ```
 
 ### Manual Setup
@@ -314,10 +314,10 @@ make clean              # Clean up Docker resources
 
 ## Documentation
 
-- **[setup-alias.sh](setup-alias.sh)** - Shell helper script with usage examples
-- **[INSTALL_API.md](INSTALL_API.md)** - pfSense REST API package installation
-- **[SETUP.md](SETUP.md)** - Initial setup and API configuration
-- **[ALIASES.md](ALIASES.md)** - DNS alias management examples
+- **[setup-alias.sh](scripts/setup-alias.sh)** - Shell helper script with usage examples
+- **[INSTALL_API.md](docs/INSTALL_API.md)** - pfSense REST API package installation
+- **[SETUP.md](docs/SETUP.md)** - Initial setup and API configuration
+- **[ALIASES.md](docs/ALIASES.md)** - DNS alias management examples
 
 ## Troubleshooting
 
