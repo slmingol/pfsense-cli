@@ -12,7 +12,8 @@
 
 [![CI](https://github.com/slmingol/pfsense-cli/actions/workflows/ci.yml/badge.svg)](https://github.com/slmingol/pfsense-cli/actions/workflows/ci.yml)
 [![Release](https://github.com/slmingol/pfsense-cli/actions/workflows/release.yml/badge.svg)](https://github.com/slmingol/pfsense-cli/actions/workflows/release.yml)
-[![semantic-release: conventionalcommits](https://img.shields.io/badge/semantic--release-conventionalcommits-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
+[![GitHub release](https://img.shields.io/github/v/release/slmingol/pfsense-cli)](https://github.com/slmingol/pfsense-cli/releases)
+[![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
 A Docker-based CLI tool to manage DNS entries and HAProxy configuration in pfSense.
