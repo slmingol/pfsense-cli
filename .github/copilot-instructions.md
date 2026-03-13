@@ -7,8 +7,7 @@
 - **Type**: CLI tool (Docker-containerized Node.js application)
 - **Size**: Small (~19 source files, excluding node_modules)
 - **Languages**: JavaScript (Node.js 20)
-- **Runtime**: Docker + docker-compose
-- **Key Dependencies**: commander ^11.1.0, axios ^1.6.0, dotenv ^16.3.1
+- **Runtime**: Docker + podman compose - **Key Dependencies**: commander ^11.1.0, axios ^1.6.0, dotenv ^16.3.1
 - **Package Manager**: npm
 - **Current Version**: 1.0.0 (managed by semantic-release)
 
@@ -74,7 +73,7 @@
 ## Build & Development Workflow
 
 ### Prerequisites
-- Docker and docker-compose installed
+- Docker and podman compose installed
 - Node.js 20+ (for local development)
 - `.env` file must exist (copy from `.env.example`) for Docker builds
 
@@ -98,22 +97,22 @@ cp .env.example .env
 
 2. **Build Docker Image** (~15-30 seconds):
    ```bash
-   docker compose build
-   # IMPORTANT: Use 'docker compose' (space), NOT 'docker-compose' (hyphen)
-   # The hyphenated command is deprecated. CI uses the space version.
+   podman compose build
+   # IMPORTANT: Use 'podman compose' (space), NOT 'podman-compose' (hyphen)
+   # The hyphenated variant is legacy. Prefer the built-in compose plugin.
    # Expected: "Successfully tagged pfsense-cli-pfsense-cli"
    ```
 
 3. **Verify Build**:
    ```bash
-   docker compose run --rm pfsense-cli --version
+   podman compose run --rm pfsense-cli --version
    # Expected output: "1.0.0" (current version)
    ```
 
 4. **Make Targets** (preferred interface):
    ```bash
    make help              # DEFAULT target - shows all available commands
-   make build             # Alias for docker compose build
+   make build             # Alias for podman compose build
    make cli-help          # Show CLI --help output
    ```
 
@@ -131,10 +130,10 @@ Code changes are reflected immediately without rebuilding (volume mount):
 ```bash
 # Edit lib/dns.js, lib/haproxy.js, or cli.js
 # Then immediately test:
-docker compose run --rm pfsense-cli list
+podman compose run --rm pfsense-cli list
 
 # Only rebuild if changing package.json dependencies:
-docker compose build
+podman compose build
 ```
 
 ## Version Control & Release Process
@@ -172,7 +171,7 @@ feat(api)!: migrate to v3 endpoints      # → 2.0.0 (breaking)
 - **Triggers**: Push/PR to `main` or `develop`
 - **Jobs**:
   1. **Lint** (Node.js 20): `npm ci` → `npm run lint --if-present`
-  2. **Build** (Node.js 20): `npm ci` → `npm test --if-present` → `cp .env.example .env` → `docker compose build` → verify version
+  2. **Build** (Node.js 20): `npm ci` → `npm test --if-present` → `cp .env.example .env` → `podman compose build` → verify version
 - **Duration**: ~1-2 minutes
 - **Critical**: Must copy `.env.example` to `.env` before Docker build (line 44-45)
 
@@ -200,8 +199,8 @@ feat(api)!: migrate to v3 endpoints      # → 2.0.0 (breaking)
 3. **Test locally**:
    ```bash
    cp .env.example .env  # If not already done
-   docker compose build
-   docker compose run --rm pfsense-cli --version
+   podman compose build
+   podman compose run --rm pfsense-cli --version
    make help  # Verify make targets work
    ```
 
@@ -233,8 +232,8 @@ feat(api)!: migrate to v3 endpoints      # → 2.0.0 (breaking)
 **Prevention**: CI workflow includes this step (line 44-45 of `ci.yml`)
 
 ### 2. CI Fails: "docker-compose: command not found"
-**Problem**: Using deprecated `docker-compose` (hyphen)
-**Solution**: Use `docker compose` (space) everywhere
+**Problem**: Using deprecated compose command variant
+**Solution**: Use `podman compose` (space) for local container work
 **Fixed in**: Commit 8b088ca
 
 ### 3. Release Workflow Fails: Invalid YAML
@@ -268,7 +267,7 @@ NODE_NO_WARNINGS=1              # Suppress Node.js warnings
 1. **Trust these instructions first** - Only search the codebase if information here is incomplete or contradicts what you observe
 2. **Always use conventional commits** - This is non-negotiable for versioning
 3. **Always create .env before Docker build** - `cp .env.example .env`
-4. **Use `docker compose` not `docker-compose`** - Space, not hyphen
+4. **Use `podman compose` not `podman-compose`** - Space, not hyphen
 5. **No tests exist** - Use `npm test --if-present` in scripts
 6. **Changes are immediate** - Volume mounts mean no rebuild needed for code edits
 7. **Check CI before merging** - Ensure green checkmarks on both workflows
