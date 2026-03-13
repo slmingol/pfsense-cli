@@ -45,6 +45,9 @@ jobs:
     - name: Run tests
       run: npm test --if-present
     
+    - name: Create dummy .env for Docker build
+      run: cp .env.example .env
+    
     - name: Build Docker image
       run: docker compose build
     
