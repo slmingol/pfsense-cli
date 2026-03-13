@@ -46,7 +46,7 @@ jobs:
       run: npm test --if-present
     
     - name: Build Docker image
-      run: docker-compose build
+      run: docker compose build
     
     - name: Verify Docker image
-      run: docker-compose run --rm pfsense-cli --version
+      run: docker compose run --rm pfsense-cli --version
