@@ -1,3 +1,10 @@
+## [1.0.1](https://github.com/slmingol/pfsense-cli/compare/v1.0.0...v1.0.1) (2026-03-13)
+
+
+### Documentation
+
+* fix semantic-release badge preset and add version badge ([0e47eff](https://github.com/slmingol/pfsense-cli/commit/0e47effcd900d150df8159124b56dd72ba38b7ca))
+
 ## 1.0.0 (2026-03-13)
 
 
