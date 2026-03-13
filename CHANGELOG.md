@@ -1,3 +1,10 @@
+## [1.0.2](https://github.com/slmingol/pfsense-cli/compare/v1.0.1...v1.0.2) (2026-03-13)
+
+
+### Documentation
+
+* add comprehensive Copilot agent onboarding instructions ([2a18d39](https://github.com/slmingol/pfsense-cli/commit/2a18d395e7bc2f47b988f29a0e9ead45dca4dc5f))
+
 ## [1.0.1](https://github.com/slmingol/pfsense-cli/compare/v1.0.0...v1.0.1) (2026-03-13)
 
 
