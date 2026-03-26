@@ -1,3 +1,10 @@
+## [1.1.0](https://github.com/slmingol/pfsense-cli/compare/v1.0.4...v1.1.0) (2026-03-26)
+
+
+### Features
+
+* **makefile:** allow add-service to override backend/frontend hosts via HOST_BUB and HOST_LAMOLABS args ([ad8d632](https://github.com/slmingol/pfsense-cli/commit/ad8d63231fbf9269a086c7873dca9ca5e06877cb))
+
 ## [1.0.4](https://github.com/slmingol/pfsense-cli/compare/v1.0.3...v1.0.4) (2026-03-13)
 
 
