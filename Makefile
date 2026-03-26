@@ -123,15 +123,18 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 # Add complete service (DNS aliases + HAProxy backend + frontend routes)
 # Usage: make add-service ALIAS=jitterbox-rocks PORT=5431 DESC="Jitterbox Rocks - https://github.com/slmingol/jitterbox-rocks"
 add-service: ## Add complete service (ALIAS= PORT= DESC=) - DNS + HAProxy
+	# Allow override of backend/frontend hosts, default to current values
+	HOST_BUB ?= docker-host-01-svcs
+	HOST_LAMOLABS ?= lamolabs-svcs
 	@if [ -z "$(ALIAS)" ] || [ -z "$(PORT)" ] || [ -z "$(DESC)" ]; then \
 		echo "Error: ALIAS, PORT, and DESC are required"; \
-		echo "Usage: make add-service ALIAS=service-name PORT=8080 DESC='Service description'"; \
+		echo "Usage: make add-service ALIAS=service-name PORT=8080 DESC='Service description' [HOST_BUB=backend-host] [HOST_LAMOLABS=frontend-host]"; \
 		exit 1; \
 	fi
-	@echo "Step 1/4: Adding DNS alias $(ALIAS).bub.lan → docker-host-01-svcs.bub.lan (for backend)..."
-	@docker-compose run --rm pfsense-cli alias:add --host docker-host-01-svcs --domain bub.lan --alias-host $(ALIAS) --alias-domain bub.lan --description "$(DESC)" 2>/dev/null || true
-	@echo "Step 2/4: Adding DNS alias $(ALIAS).lamolabs.org → lamolabs-svcs.lamolabs.org (for frontend)..."
-	@docker-compose run --rm pfsense-cli alias:add --host lamolabs-svcs --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org --description "$(DESC)" 2>/dev/null || true
+	@echo "Step 1/4: Adding DNS alias $(ALIAS).bub.lan → $(HOST_BUB).bub.lan (for backend)..."
+	@docker-compose run --rm pfsense-cli alias:add --host $(HOST_BUB) --domain bub.lan --alias-host $(ALIAS) --alias-domain bub.lan --description "$(DESC)" 2>/dev/null || true
+	@echo "Step 2/4: Adding DNS alias $(ALIAS).lamolabs.org → $(HOST_LAMOLABS).lamolabs.org (for frontend)..."
+	@docker-compose run --rm pfsense-cli alias:add --host $(HOST_LAMOLABS) --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org --description "$(DESC)" 2>/dev/null || true
 	@echo "Step 3/4: Creating HAProxy backend $(ALIAS) → $(ALIAS).bub.lan:$(PORT)..."
 	@docker-compose run --rm pfsense-cli haproxy:add --name $(ALIAS) --server-name $(ALIAS).bub.lan --server-address $(ALIAS).bub.lan --server-port $(PORT) 2>/dev/null
 	@echo "Step 4/4: Adding frontend ACL+Action: $(ALIAS).lamolabs.org → $(ALIAS) backend..."
