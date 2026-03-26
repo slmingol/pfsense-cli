@@ -1,3 +1,10 @@
+## [1.1.1](https://github.com/slmingol/pfsense-cli/compare/v1.1.0...v1.1.1) (2026-03-26)
+
+
+### Documentation
+
+* document HOST_BUB and HOST_LAMOLABS override args for add-service in README ([82d319e](https://github.com/slmingol/pfsense-cli/commit/82d319e0c5f4bfcc98ad00f41189fdcbd82cb1d1))
+
 ## [1.1.0](https://github.com/slmingol/pfsense-cli/compare/v1.0.4...v1.1.0) (2026-03-26)
 
 
