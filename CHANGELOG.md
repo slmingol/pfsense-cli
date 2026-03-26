@@ -1,3 +1,10 @@
+## [1.1.2](https://github.com/slmingol/pfsense-cli/compare/v1.1.1...v1.1.2) (2026-03-26)
+
+
+### Documentation
+
+* **makefile:** add advanced example showing HOST_BUB and HOST_LAMOLABS override usage ([012e47f](https://github.com/slmingol/pfsense-cli/commit/012e47f4c2e9386d9e91566c2ee7c59121644c41))
+
 ## [1.1.1](https://github.com/slmingol/pfsense-cli/compare/v1.1.0...v1.1.1) (2026-03-26)
 
 
