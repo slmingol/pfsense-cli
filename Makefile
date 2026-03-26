@@ -10,7 +10,12 @@ help: ## Show this help message
 	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
+	@echo "  # Basic usage - uses default hosts (docker-host-01-svcs, lamolabs-svcs)"
 	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application'"
+	@echo ""
+	@echo "  # Advanced - override backend/frontend hosts:"
+	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=custom-backend HOST_LAMOLABS=custom-frontend"
+	@echo ""
 	@echo "  make dns-list"
 	@echo "  make haproxy-list"
 	@echo ""
