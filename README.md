@@ -109,11 +109,14 @@ The easiest way to deploy a new service with DNS and HAProxy configured:
 
 ```bash
 make add-service ALIAS=myapp PORT=3000 DESC="My Application"
+
+# To override backend/frontend hosts:
+make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 ```
 
 This single command:
-1. ✅ Creates DNS alias `myapp.example.local` → `docker-host.example.local` (backend resolution)
-2. ✅ Creates DNS alias `myapp.example.com` → `frontend.example.com` (frontend access)
+1. ✅ Creates DNS alias `myapp.example.local` → backend host (default: `docker-host-01-svcs.bub.lan`, override with `HOST_BUB`)
+2. ✅ Creates DNS alias `myapp.example.com` → frontend host (default: `lamolabs-svcs.lamolabs.org`, override with `HOST_LAMOLABS`)
 3. ✅ Creates HAProxy backend `myapp` → `myapp.example.local:3000`
 4. ✅ Adds frontend ACL/Action: `myapp.example.com` → routes to `myapp` backend
 
@@ -246,11 +249,14 @@ docker-compose run --rm pfsense-cli haproxy:route-add \
 
 ```bash
 make add-service ALIAS=myapp PORT=3000 DESC="My Application"
+
+# Override backend/frontend hosts if needed:
+make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 ```
 
 Creates:
-1. **DNS**: `myapp.example.local` → `192.168.1.100` (backend resolution)
-2. **DNS**: `myapp.example.com` → `192.168.1.1` (frontend access)
+1. **DNS**: `myapp.example.local` → backend host (default: `docker-host-01-svcs.bub.lan`, override with `HOST_BUB`)
+2. **DNS**: `myapp.example.com` → frontend host (default: `lamolabs-svcs.lamolabs.org`, override with `HOST_LAMOLABS`)
 3. **HAProxy Backend**: `myapp` → connects to `myapp.example.local:3000`
 4. **HAProxy Frontend**: Routes `myapp.example.com` → `myapp` backend
 
