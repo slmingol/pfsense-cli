@@ -1,3 +1,10 @@
+## [1.1.3](https://github.com/slmingol/pfsense-cli/compare/v1.1.2...v1.1.3) (2026-03-30)
+
+
+### Bug Fixes
+
+* move HOST variable assignments outside recipe to fix syntax error ([d4fc367](https://github.com/slmingol/pfsense-cli/commit/d4fc367d82278bd9f19167a243b90176d642b5d6))
+
 ## [1.1.2](https://github.com/slmingol/pfsense-cli/compare/v1.1.1...v1.1.2) (2026-03-26)
 
 
