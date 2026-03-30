@@ -127,10 +127,11 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 
 # Add complete service (DNS aliases + HAProxy backend + frontend routes)
 # Usage: make add-service ALIAS=jitterbox-rocks PORT=5431 DESC="Jitterbox Rocks - https://github.com/slmingol/jitterbox-rocks"
+# Allow override of backend/frontend hosts, default to current values
+HOST_BUB ?= docker-host-01-svcs
+HOST_LAMOLABS ?= lamolabs-svcs
+
 add-service: ## Add complete service (ALIAS= PORT= DESC=) - DNS + HAProxy
-	# Allow override of backend/frontend hosts, default to current values
-	HOST_BUB ?= docker-host-01-svcs
-	HOST_LAMOLABS ?= lamolabs-svcs
 	@if [ -z "$(ALIAS)" ] || [ -z "$(PORT)" ] || [ -z "$(DESC)" ]; then \
 		echo "Error: ALIAS, PORT, and DESC are required"; \
 		echo "Usage: make add-service ALIAS=service-name PORT=8080 DESC='Service description' [HOST_BUB=backend-host] [HOST_LAMOLABS=frontend-host]"; \
