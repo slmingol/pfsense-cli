@@ -1,4 +1,4 @@
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service help cli-help test-api check-version
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service list-hosts help cli-help test-api check-version
 
 .DEFAULT_GOAL := help
 
@@ -14,8 +14,13 @@ help: ## Show this help message
 	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application'"
 	@echo ""
 	@echo "  # Advanced - override backend/frontend hosts:"
-	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=custom-backend HOST_LAMOLABS=custom-frontend"
+	@echo "  #   HOST_BUB      = hostname (no domain) of an existing bub.lan DNS entry"
+	@echo "  #   HOST_LAMOLABS = hostname (no domain) of an existing lamolabs.org DNS entry"
+	@echo "  #   Run 'make list-hosts' to see all valid values from live DNS"
+	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=docker-host-02-svcs HOST_LAMOLABS=lamolabs-svcs"
+	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=orangepi5-svcs HOST_LAMOLABS=lamolabs-svcs"
 	@echo ""
+	@echo "  make list-hosts     # show available HOST_BUB / HOST_LAMOLABS values"
 	@echo "  make dns-list"
 	@echo "  make haproxy-list"
 	@echo ""
@@ -38,6 +43,25 @@ test-api: ## Test pfSense API connectivity
 check-version: ## Check pfSense version and API status
 	@echo "Checking pfSense version and available endpoints..."
 	@docker-compose run --rm --entrypoint sh pfsense-cli -c 'apk add --quiet curl > /dev/null 2>&1 && echo "Testing various API endpoints:" && echo "" && echo "1. Built-in API (pfSense 2.5+):" && curl -s -k -w " [HTTP %{http_code}]\n" -H "Authorization: $$PFSENSE_API_KEY $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/version -o /dev/null && echo "" && echo "2. Community API package:" && curl -s -k -w " [HTTP %{http_code}]\n" -H "Authorization: $$PFSENSE_API_KEY $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/api -o /dev/null && echo "" && echo "If both show 404, you need to install the API package."'
+
+# Show available host values for HOST_BUB / HOST_LAMOLABS overrides
+list-hosts: ## Show valid HOST_BUB and HOST_LAMOLABS values (queries live DNS)
+	@echo "Querying pfSense DNS for registered hosts..."
+	@echo ""
+	@echo "Backend hosts  (HOST_BUB candidates — bub.lan domain):"
+	@result=$$(docker-compose run --rm pfsense-cli list 2>/dev/null \
+	  | grep -E '^\s*[0-9]+\.' | grep '\.bub\.lan' \
+	  | sed 's/.*[0-9]\+\. //; s/\.bub\.lan//'); \
+	if [ -z "$$result" ]; then echo "  (none found)"; else echo "$$result" | sed 's/^/  /'; fi
+	@echo ""
+	@echo "Frontend hosts (HOST_LAMOLABS candidates — lamolabs.org domain):"
+	@result=$$(docker-compose run --rm pfsense-cli list 2>/dev/null \
+	  | grep -E '^\s*[0-9]+\.' | grep '\.lamolabs\.org' \
+	  | sed 's/.*[0-9]\+\. //; s/\.lamolabs\.org//'); \
+	if [ -z "$$result" ]; then echo "  (none found)"; else echo "$$result" | sed 's/^/  /'; fi
+	@echo ""
+	@echo "Usage:"
+	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My App' HOST_BUB=<value-above> HOST_LAMOLABS=<value-above>"
 
 # List DNS entries
 dns-list: ## List all DNS entries

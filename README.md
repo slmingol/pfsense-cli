@@ -111,6 +111,14 @@ The easiest way to deploy a new service with DNS and HAProxy configured:
 make add-service ALIAS=myapp PORT=3000 DESC="My Application"
 
 # To override backend/frontend hosts:
+# HOST_BUB      = hostname (no domain) of any existing backend-domain DNS entry
+# HOST_LAMOLABS = hostname (no domain) of any existing frontend-domain DNS entry
+# Run 'make list-hosts' to see all valid values pulled from live DNS.
+#
+# Examples of real-world host patterns:
+#   HOST_BUB=docker-host-02-svcs   (another numbered docker host)
+#   HOST_BUB=orangepi5-svcs        (non-standard hardware host)
+#   HOST_BUB=my-backend            (arbitrary name)
 make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 ```
 
@@ -250,7 +258,10 @@ docker-compose run --rm pfsense-cli haproxy:route-add \
 ```bash
 make add-service ALIAS=myapp PORT=3000 DESC="My Application"
 
-# Override backend/frontend hosts if needed:
+# Override backend/frontend hosts if needed.
+# HOST_BUB / HOST_LAMOLABS are the hostname portion (no domain) of any existing
+# DNS entry in the respective domain. Common patterns: docker-host-02-svcs,
+# orangepi5-svcs, or any arbitrary name. Run 'make list-hosts' to see live values.
 make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 ```
 
