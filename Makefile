@@ -1,4 +1,4 @@
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service list-hosts help cli-help test-api check-version
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version
 
 .DEFAULT_GOAL := help
 
@@ -7,24 +7,23 @@ help: ## Show this help message
 	@echo "pfSense CLI - Available Make Targets"
 	@echo "======================================"
 	@echo ""
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2}'
 	@echo ""
 	@echo "Examples:"
-	@echo "  # Basic usage - uses default hosts (docker-host-01-svcs, lamolabs-svcs)"
-	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application'"
+	@echo "  make add-service    ALIAS=myapp PORT=8080 DESC='My Application'"
+	@echo "  make delete-service ALIAS=myapp"
 	@echo ""
-	@echo "  # Advanced - override backend/frontend hosts:"
-	@echo "  #   HOST_BUB      = hostname (no domain) of an existing bub.lan DNS entry"
-	@echo "  #   HOST_LAMOLABS = hostname (no domain) of an existing lamolabs.org DNS entry"
-	@echo "  #   Run 'make list-hosts' to see all valid values from live DNS"
-	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=docker-host-02-svcs HOST_LAMOLABS=lamolabs-svcs"
-	@echo "  make add-service ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=orangepi5-svcs HOST_LAMOLABS=lamolabs-svcs"
+	@echo "  # HOST_BUB / HOST_LAMOLABS: hostname (no domain) of an existing DNS entry"
+	@echo "  # in the respective domain. Run 'make list-hosts' to see valid values."
+	@echo "  make add-service    ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=docker-host-02-svcs HOST_LAMOLABS=lamolabs-svcs"
+	@echo "  make add-service    ALIAS=myapp PORT=8080 DESC='My Application' HOST_BUB=orangepi5-svcs     HOST_LAMOLABS=lamolabs-svcs"
+	@echo "  make delete-service ALIAS=myapp HOST_BUB=docker-host-02-svcs HOST_LAMOLABS=lamolabs-svcs"
 	@echo ""
-	@echo "  make list-hosts     # show available HOST_BUB / HOST_LAMOLABS values"
-	@echo "  make dns-list"
-	@echo "  make haproxy-list"
+	@echo "  make list-hosts                              # show available HOST_BUB / HOST_LAMOLABS values"
+	@echo "  make dns-list                                # list all DNS entries"
+	@echo "  make haproxy-list                            # list all HAProxy backends"
 	@echo ""
-	@echo "For CLI command help: make cli-help"
+	@echo "For CLI help: make cli-help"
 
 # Build the Docker image
 build: ## Build the Docker image
@@ -179,6 +178,30 @@ add-service: ## Add complete service (ALIAS= PORT= DESC=) - DNS + HAProxy
 	@echo "    - Frontend HomePrivateServers: $(ALIAS).lamolabs.org → $(ALIAS) backend"
 	@echo ""
 	@echo "  Access via: https://$(ALIAS).lamolabs.org"
+
+# Remove complete service (frontend route + HAProxy backend + DNS aliases)
+# Usage: make delete-service ALIAS=myapp [HOST_BUB=docker-host-01-svcs] [HOST_LAMOLABS=lamolabs-svcs]
+delete-service: ## Remove complete service (ALIAS=) - DNS + HAProxy (reverse of add-service)
+	@if [ -z "$(ALIAS)" ]; then \
+		echo "Error: ALIAS is required"; \
+		echo "Usage: make delete-service ALIAS=service-name [HOST_BUB=backend-host] [HOST_LAMOLABS=frontend-host]"; \
+		exit 1; \
+	fi
+	@echo "Step 1/4: Removing frontend ACL+Action for $(ALIAS).lamolabs.org..."
+	@docker-compose run --rm pfsense-cli haproxy:route-delete --frontend HomePrivateServers --acl $(ALIAS) || true
+	@echo "Step 2/4: Deleting HAProxy backend $(ALIAS)..."
+	@docker-compose run --rm pfsense-cli haproxy:delete --name $(ALIAS) || true
+	@echo "Step 3/4: Removing DNS alias $(ALIAS).lamolabs.org → $(HOST_LAMOLABS).lamolabs.org..."
+	@docker-compose run --rm pfsense-cli alias:delete --host $(HOST_LAMOLABS) --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org 2>/dev/null || true
+	@echo "Step 4/4: Removing DNS alias $(ALIAS).bub.lan → $(HOST_BUB).bub.lan..."
+	@docker-compose run --rm pfsense-cli alias:delete --host $(HOST_BUB) --domain bub.lan --alias-host $(ALIAS) --alias-domain bub.lan 2>/dev/null || true
+	@echo ""
+	@echo "✓ Service $(ALIAS) removed!"
+	@echo "  Deleted:"
+	@echo "    - Frontend ACL+Action: $(ALIAS).lamolabs.org"
+	@echo "    - HAProxy backend: $(ALIAS)"
+	@echo "    - DNS alias: $(ALIAS).lamolabs.org"
+	@echo "    - DNS alias: $(ALIAS).bub.lan"
 
 # Clean up Docker resources
 clean: ## Clean up Docker resources
