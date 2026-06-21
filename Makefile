@@ -165,9 +165,9 @@ add-service: ## Add complete service (ALIAS= PORT= DESC=) - DNS + HAProxy
 	@echo "Step 2/4: Adding DNS alias $(ALIAS).lamolabs.org → $(HOST_LAMOLABS).lamolabs.org (for frontend)..."
 	@docker-compose run --rm pfsense-cli alias:add --host $(HOST_LAMOLABS) --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org --description "$(DESC)" 2>/dev/null || true
 	@echo "Step 3/4: Creating HAProxy backend $(ALIAS) → $(ALIAS).bub.lan:$(PORT)..."
-	@docker-compose run --rm pfsense-cli haproxy:add --name $(ALIAS) --server-name $(ALIAS).bub.lan --server-address $(ALIAS).bub.lan --server-port $(PORT)
+	@docker-compose run --rm pfsense-cli haproxy:add --name $(ALIAS) --server-name $(ALIAS).bub.lan --server-address $(ALIAS).bub.lan --server-port $(PORT) 2>/dev/null
 	@echo "Step 4/4: Adding frontend ACL+Action: $(ALIAS).lamolabs.org → $(ALIAS) backend..."
-	@docker-compose run --rm pfsense-cli haproxy:route-add --frontend HomePrivateServers --acl $(ALIAS) --hostname $(ALIAS).lamolabs.org --backend $(ALIAS)
+	@docker-compose run --rm pfsense-cli haproxy:route-add --frontend HomePrivateServers --acl $(ALIAS) --hostname $(ALIAS).lamolabs.org --backend $(ALIAS) 2>/dev/null
 	@echo ""
 	@echo "✓ Service $(ALIAS) fully configured!"
 	@echo "  DNS:"
@@ -188,9 +188,9 @@ delete-service: ## Remove complete service (ALIAS=) - DNS + HAProxy (reverse of 
 		exit 1; \
 	fi
 	@echo "Step 1/4: Removing frontend ACL+Action for $(ALIAS).lamolabs.org..."
-	@docker-compose run --rm pfsense-cli haproxy:route-delete --frontend HomePrivateServers --acl $(ALIAS) || true
+	@docker-compose run --rm pfsense-cli haproxy:route-delete --frontend HomePrivateServers --acl $(ALIAS) 2>/dev/null || true
 	@echo "Step 2/4: Deleting HAProxy backend $(ALIAS)..."
-	@docker-compose run --rm pfsense-cli haproxy:delete --name $(ALIAS) || true
+	@docker-compose run --rm pfsense-cli haproxy:delete --name $(ALIAS) 2>/dev/null || true
 	@echo "Step 3/4: Removing DNS alias $(ALIAS).lamolabs.org → $(HOST_LAMOLABS).lamolabs.org..."
 	@docker-compose run --rm pfsense-cli alias:delete --host $(HOST_LAMOLABS) --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org 2>/dev/null || true
 	@echo "Step 4/4: Removing DNS alias $(ALIAS).bub.lan → $(HOST_BUB).bub.lan..."
