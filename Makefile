@@ -37,24 +37,22 @@ add-service: ## Add complete service (ALIAS= PORT= DESC=) - DNS + HAProxy
 		echo "Usage: make add-service ALIAS=service-name PORT=8080 DESC='Service description' [HOST_BUB=backend-host] [HOST_LAMOLABS=frontend-host]"; \
 		exit 1; \
 	fi
-	@echo "Step 1/4: Adding DNS alias $(ALIAS).bub.lan → $(HOST_BUB).bub.lan (for backend)..."
+	@printf "\033[1;36mStep 1/4:\033[0m Adding DNS alias \033[36m$(ALIAS).bub.lan\033[0m → \033[36m$(HOST_BUB).bub.lan\033[0m \033[90m(for backend)\033[0m...\n"
 	@docker-compose run --rm pfsense-cli alias:add --host $(HOST_BUB) --domain bub.lan --alias-host $(ALIAS) --alias-domain bub.lan --description "$(DESC)" 2>/dev/null || true
-	@echo "Step 2/4: Adding DNS alias $(ALIAS).lamolabs.org → $(HOST_LAMOLABS).lamolabs.org (for frontend)..."
+	@printf "\033[1;36mStep 2/4:\033[0m Adding DNS alias \033[36m$(ALIAS).lamolabs.org\033[0m → \033[36m$(HOST_LAMOLABS).lamolabs.org\033[0m \033[90m(for frontend)\033[0m...\n"
 	@docker-compose run --rm pfsense-cli alias:add --host $(HOST_LAMOLABS) --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org --description "$(DESC)" 2>/dev/null || true
-	@echo "Step 3/4: Creating HAProxy backend $(ALIAS) → $(ALIAS).bub.lan:$(PORT)..."
+	@printf "\033[1;36mStep 3/4:\033[0m Creating HAProxy backend \033[36m$(ALIAS)\033[0m → \033[36m$(ALIAS).bub.lan:$(PORT)\033[0m...\n"
 	@docker-compose run --rm pfsense-cli haproxy:add --name $(ALIAS) --server-name $(ALIAS).bub.lan --server-address $(ALIAS).bub.lan --server-port $(PORT) 2>/dev/null
-	@echo "Step 4/4: Adding frontend ACL+Action: $(ALIAS).lamolabs.org → $(ALIAS) backend..."
+	@printf "\033[1;36mStep 4/4:\033[0m Adding frontend ACL+Action: \033[36m$(ALIAS).lamolabs.org\033[0m → \033[36m$(ALIAS)\033[0m backend...\n"
 	@docker-compose run --rm pfsense-cli haproxy:route-add --frontend HomePrivateServers --acl $(ALIAS) --hostname $(ALIAS).lamolabs.org --backend $(ALIAS) 2>/dev/null
-	@echo ""
-	@echo "✓ Service $(ALIAS) fully configured!"
-	@echo "  DNS:"
-	@echo "    - $(ALIAS).bub.lan → 192.168.7.42 (backend server resolution)"
-	@echo "    - $(ALIAS).lamolabs.org → 192.168.7.1 (HAProxy frontend)"
-	@echo "  HAProxy:"
-	@echo "    - Backend: $(ALIAS) → $(ALIAS).bub.lan:$(PORT)"
-	@echo "    - Frontend HomePrivateServers: $(ALIAS).lamolabs.org → $(ALIAS) backend"
-	@echo ""
-	@echo "  Access via: https://$(ALIAS).lamolabs.org"
+	@printf "\n\033[1;32m✓ Service \033[1;37m$(ALIAS)\033[1;32m fully configured!\033[0m\n"
+	@printf "\n  \033[1mDNS:\033[0m\n"
+	@printf "    \033[90m-\033[0m \033[36m$(ALIAS).bub.lan\033[0m \033[90m→ 192.168.7.42 (backend)\033[0m\n"
+	@printf "    \033[90m-\033[0m \033[36m$(ALIAS).lamolabs.org\033[0m \033[90m→ 192.168.7.1 (HAProxy frontend)\033[0m\n"
+	@printf "\n  \033[1mHAProxy:\033[0m\n"
+	@printf "    \033[90m-\033[0m Backend: \033[36m$(ALIAS)\033[0m \033[90m→\033[0m \033[36m$(ALIAS).bub.lan:$(PORT)\033[0m\n"
+	@printf "    \033[90m-\033[0m Frontend \033[33mHomePrivateServers\033[0m: \033[36m$(ALIAS).lamolabs.org\033[0m \033[90m→\033[0m \033[36m$(ALIAS)\033[0m backend\n"
+	@printf "\n  \033[1mAccess via:\033[0m \033[1;32mhttps://$(ALIAS).lamolabs.org\033[0m\n\n"
 
 # Usage: make delete-service ALIAS=myapp [HOST_BUB=docker-host-01-svcs] [HOST_LAMOLABS=lamolabs-svcs]
 delete-service: ## Remove complete service (ALIAS=) - DNS + HAProxy (reverse of add-service)
@@ -63,21 +61,20 @@ delete-service: ## Remove complete service (ALIAS=) - DNS + HAProxy (reverse of 
 		echo "Usage: make delete-service ALIAS=service-name [HOST_BUB=backend-host] [HOST_LAMOLABS=frontend-host]"; \
 		exit 1; \
 	fi
-	@echo "Step 1/4: Removing frontend ACL+Action for $(ALIAS).lamolabs.org..."
+	@printf "\033[1;36mStep 1/4:\033[0m Removing frontend ACL+Action for \033[36m$(ALIAS).lamolabs.org\033[0m...\n"
 	@docker-compose run --rm pfsense-cli haproxy:route-delete --frontend HomePrivateServers --acl $(ALIAS) 2>/dev/null || true
-	@echo "Step 2/4: Deleting HAProxy backend $(ALIAS)..."
+	@printf "\033[1;36mStep 2/4:\033[0m Deleting HAProxy backend \033[36m$(ALIAS)\033[0m...\n"
 	@docker-compose run --rm pfsense-cli haproxy:delete --name $(ALIAS) 2>/dev/null || true
-	@echo "Step 3/4: Removing DNS alias $(ALIAS).lamolabs.org → $(HOST_LAMOLABS).lamolabs.org..."
+	@printf "\033[1;36mStep 3/4:\033[0m Removing DNS alias \033[36m$(ALIAS).lamolabs.org\033[0m → \033[36m$(HOST_LAMOLABS).lamolabs.org\033[0m...\n"
 	@docker-compose run --rm pfsense-cli alias:delete --host $(HOST_LAMOLABS) --domain lamolabs.org --alias-host $(ALIAS) --alias-domain lamolabs.org 2>/dev/null || true
-	@echo "Step 4/4: Removing DNS alias $(ALIAS).bub.lan → $(HOST_BUB).bub.lan..."
+	@printf "\033[1;36mStep 4/4:\033[0m Removing DNS alias \033[36m$(ALIAS).bub.lan\033[0m → \033[36m$(HOST_BUB).bub.lan\033[0m...\n"
 	@docker-compose run --rm pfsense-cli alias:delete --host $(HOST_BUB) --domain bub.lan --alias-host $(ALIAS) --alias-domain bub.lan 2>/dev/null || true
-	@echo ""
-	@echo "✓ Service $(ALIAS) removed!"
-	@echo "  Deleted:"
-	@echo "    - Frontend ACL+Action: $(ALIAS).lamolabs.org"
-	@echo "    - HAProxy backend: $(ALIAS)"
-	@echo "    - DNS alias: $(ALIAS).lamolabs.org"
-	@echo "    - DNS alias: $(ALIAS).bub.lan"
+	@printf "\n\033[1;32m✓ Service \033[1;37m$(ALIAS)\033[1;32m removed!\033[0m\n"
+	@printf "\n  \033[1mDeleted:\033[0m\n"
+	@printf "    \033[90m-\033[0m Frontend ACL+Action: \033[36m$(ALIAS).lamolabs.org\033[0m\n"
+	@printf "    \033[90m-\033[0m HAProxy backend: \033[36m$(ALIAS)\033[0m\n"
+	@printf "    \033[90m-\033[0m DNS alias: \033[36m$(ALIAS).lamolabs.org\033[0m\n"
+	@printf "    \033[90m-\033[0m DNS alias: \033[36m$(ALIAS).bub.lan\033[0m\n\n"
 
 list-hosts: ## Show valid HOST_BUB and HOST_LAMOLABS values (queries live DNS)
 	@echo "Querying pfSense DNS for registered hosts..."
