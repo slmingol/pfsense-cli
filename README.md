@@ -117,11 +117,29 @@ make add-service ALIAS=myapp PORT=3000 DESC="My Application"
 make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 ```
 
-`add-service` runs four steps:
-1. ✅ Creates DNS alias `myapp.example.local` → backend host (default: `docker-host-01-svcs.bub.lan`, override with `HOST_BUB`)
-2. ✅ Creates DNS alias `myapp.example.com` → frontend host (default: `lamolabs-svcs.lamolabs.org`, override with `HOST_LAMOLABS`)
-3. ✅ Creates HAProxy backend `myapp` → `myapp.example.local:3000`
-4. ✅ Adds frontend ACL/Action: `myapp.example.com` → routes to `myapp` backend
+`add-service` runs four steps with colorized progress output:
+
+```
+[1/4] DNS alias myapp.example.local → docker-host-01-svcs.bub.lan (backend)
+  ✓ Successfully added alias: myapp.example.local → ...
+  ✓ DNS Resolver applied
+
+[2/4] DNS alias myapp.example.com → lamolabs-svcs.lamolabs.org (frontend)
+  ✓ Successfully added alias: myapp.example.com → ...
+  ✓ DNS Resolver applied
+
+[3/4] HAProxy backend myapp → myapp.example.local:3000
+  ✓ Successfully created HAProxy backend: myapp
+  ✓ Added server: myapp.example.local (myapp.example.local:3000)
+  ✓ HAProxy applied
+
+[4/4] Frontend route myapp.example.com → myapp backend
+  ✓ Created ACL: myapp
+  ✓ Created action: myapp.example.com → myapp
+  ✓ HAProxy applied
+```
+
+Steps are idempotent — re-running skips already-configured resources with an `ℹ` notice.
 
 **Result:** Service accessible at `https://myapp.example.com`
 
@@ -146,13 +164,27 @@ make delete-service ALIAS=myapp
 make delete-service ALIAS=myapp HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 ```
 
-`delete-service` runs four steps:
-1. ✅ Removes frontend ACL/Action for `myapp.example.com`
-2. ✅ Deletes HAProxy backend `myapp`
-3. ✅ Removes DNS alias `myapp.example.com`
-4. ✅ Removes DNS alias `myapp.example.local`
+`delete-service` runs four steps (reverse of `add-service`):
 
-All steps are idempotent — safe to re-run if a previous teardown was partial.
+```
+[1/4] Frontend route myapp.example.com
+  ✓ Deleted frontend route for ACL: myapp
+  ✓ HAProxy applied
+
+[2/4] HAProxy backend myapp
+  ✓ Successfully deleted HAProxy backend: myapp
+  ✓ HAProxy applied
+
+[3/4] DNS alias myapp.example.com → lamolabs-svcs.lamolabs.org (frontend)
+  ✓ Successfully deleted alias: myapp.example.com
+  ✓ DNS Resolver applied
+
+[4/4] DNS alias myapp.example.local → docker-host-01-svcs.bub.lan (backend)
+  ✓ Successfully deleted alias: myapp.example.local
+  ✓ DNS Resolver applied
+```
+
+All steps use `|| true` — safe to re-run if a previous teardown was partial.
 
 ### DNS Management
 
