@@ -115,6 +115,11 @@ make add-service ALIAS=myapp PORT=3000 DESC="My Application"
 # in the respective domain. Run 'make list-hosts' to see valid values.
 # Common patterns: docker-host-02-svcs, orangepi5-svcs, or any arbitrary name.
 make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
+
+# SSL=true: use when the backend service itself serves HTTPS (e.g. port 443).
+# HAProxy normally terminates SSL and connects to backends over plain HTTP.
+# Only set this when the backend is HTTPS — most app ports (3000, 8080, etc.) don't need it.
+make add-service ALIAS=myapp PORT=443 DESC="My Application" HOST_BUB=my-backend SSL=true
 ```
 
 `add-service` runs four steps with colorized progress output:
@@ -131,6 +136,12 @@ make add-service ALIAS=myapp PORT=3000 DESC="My Application" HOST_BUB=my-backend
 [3/4] HAProxy backend myapp → myapp.example.local:3000
   ✓ Successfully created HAProxy backend: myapp
   ✓ Added server: myapp.example.local (myapp.example.local:3000)
+  ✓ HAProxy applied
+
+# With SSL=true the header shows [SSL]:
+[3/4] HAProxy backend myapp → myapp.example.local:443 [SSL]
+  ✓ Successfully created HAProxy backend: myapp
+  ✓ Added server: myapp.example.local (myapp.example.local:443)
   ✓ HAProxy applied
 
 [4/4] Frontend route myapp.example.com → myapp backend
@@ -374,7 +385,7 @@ make add-dual-alias     # Add DNS alias to both domains
 make haproxy-list       # List HAProxy backends
 make haproxy-add        # Add HAProxy backend
 make haproxy-delete     # Delete HAProxy backend
-make add-service        # Complete service deployment (DNS + HAProxy)
+make add-service        # Complete service deployment (DNS + HAProxy); SSL=true for HTTPS backends
 make delete-service     # Complete service teardown (reverse of add-service)
 make clean              # Clean up Docker resources
 ```
