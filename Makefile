@@ -1,10 +1,21 @@
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown
 
 .DEFAULT_GOAL := help
 
 HOST_BUB      ?= docker-host-01-svcs
 HOST_LAMOLABS ?= lamolabs-svcs
 SSL           ?= false
+
+# WireGuard / ProtonVPN defaults (override on command line)
+TUNNEL      ?= ProtonVPN01
+IFACE       ?= PROTONVPN
+GW          ?=
+GW_GROUP    ?= ProtonVPN_GWGrp
+LISTEN_PORT ?= 51821
+MTU         ?= 1420
+MONITOR_IP  ?= 1.1.1.1
+LAN_SUBNET  ?= 192.168.7.0/24
+LAN         ?= lan
 
 help: ## Show this help message
 	@printf "\n\033[1;37mpfSense CLI\033[0m — DNS & HAProxy management\n\n"
@@ -27,6 +38,12 @@ help: ## Show this help message
 	@printf "  \033[32mmake list-hosts\033[0m    \033[90m# show available HOST_BUB / HOST_LAMOLABS values\033[0m\n"
 	@printf "  \033[32mmake dns-list\033[0m      \033[90m# list all DNS entries\033[0m\n"
 	@printf "  \033[32mmake haproxy-list\033[0m  \033[90m# list all HAProxy backends\033[0m\n"
+	@printf "\n"
+	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'\n"
+	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32 192.168.7.7/32' TUNNEL=ProtonVPN02 IFACE=PROTONVPN2 LISTEN_PORT=51822 MONITOR_IP=9.9.9.9\n"
+	@printf "  \033[32mmake wg-dry-run\033[0m   CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'\n"
+	@printf "  \033[32mmake wg-teardown\033[0m  \033[90m# remove ProtonVPN rules, gateway, peer, NAT\033[0m\n"
+	@printf "  \033[32mmake wg-status\033[0m    \033[90m# show tunnel and peer status\033[0m\n"
 	@printf "\n"
 	@printf "For CLI help: \033[36mmake cli-help\033[0m\n\n"
 
@@ -173,6 +190,52 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 		exit 1; \
 	fi
 	@docker-compose run --rm pfsense-cli haproxy:delete --name $(NAME) 2>/dev/null
+
+##@ WireGuard / ProtonVPN
+
+# Expand KILL_SWITCH='a/32 b/32' into repeated --kill-switch flags
+_KS_FLAGS = $(foreach ks,$(KILL_SWITCH),--kill-switch $(ks))
+
+# Common wg:provision flags derived from make variables
+define _wg_flags
+  --tunnel "$(TUNNEL)" \
+  --iface-name "$(IFACE)" \
+  $(if $(GW),--gateway-name "$(GW)") \
+  --gw-group "$(GW_GROUP)" \
+  --listen-port "$(LISTEN_PORT)" \
+  --mtu "$(MTU)" \
+  --monitor-ip "$(MONITOR_IP)" \
+  --lan-subnet "$(LAN_SUBNET)" \
+  --lan "$(LAN)" \
+  $(_KS_FLAGS)
+endef
+
+wg-status: ## Show WireGuard tunnel and peer status
+	@node cli.js wg:status
+
+wg-provision: ## Full zero-touch ProtonVPN setup (CONF= KILL_SWITCH='ip/32 ...' [TUNNEL=] [IFACE=] [LISTEN_PORT=] [MONITOR_IP=] [LAN_SUBNET=])
+	@if [ -z "$(CONF)" ]; then \
+		echo "Error: CONF is required"; \
+		echo "Usage: make wg-provision CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'"; \
+		exit 1; \
+	fi
+	@node cli.js wg:provision "$(CONF)" $(call _wg_flags)
+
+wg-apply: wg-provision ## Alias for wg-provision (backward compat)
+
+wg-dry-run: ## Preview wg-provision without applying changes (same options as wg-provision)
+	@if [ -z "$(CONF)" ]; then \
+		echo "Error: CONF is required"; \
+		echo "Usage: make wg-dry-run CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'"; \
+		exit 1; \
+	fi
+	@node cli.js wg:provision "$(CONF)" $(call _wg_flags) --dry-run
+
+wg-teardown: ## Remove ProtonVPN rules, NAT, gateway, and peer ([TUNNEL=ProtonVPN01] [IFACE=PROTONVPN] [GW=])
+	@node cli.js wg:teardown \
+	  --tunnel "$(TUNNEL)" \
+	  --iface-name "$(IFACE)" \
+	  $(if $(GW),--gateway-name "$(GW)")
 
 ##@ Infrastructure
 

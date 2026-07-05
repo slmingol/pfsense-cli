@@ -16,7 +16,7 @@
 [![semantic-release: angular](https://img.shields.io/badge/semantic--release-angular-e10079?logo=semantic-release)](https://github.com/semantic-release/semantic-release)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 
-A Docker-based CLI tool to manage DNS entries and HAProxy configuration in pfSense.
+A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense via the REST API.
 
 ## Features
 
@@ -26,9 +26,10 @@ A Docker-based CLI tool to manage DNS entries and HAProxy configuration in pfSen
 ✓ **HAProxy Frontend Routes** - Configure ACLs and actions for routing  
 ✓ **Complete Service Deployment** - One command to configure DNS + HAProxy  
 ✓ **Complete Service Teardown** - One command to remove DNS + HAProxy  
+✓ **WireGuard VPN Provisioning** - Zero-touch ProtonVPN setup from a `.conf` file: tunnel, peer, interface, gateway, NAT, kill-switch firewall rules  
+✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
 ✓ Self-signed certificate support  
-✓ Dockerized - no local Node.js installation required  
 
 ## Prerequisites
 
@@ -235,6 +236,105 @@ make haproxy-add NAME=myapp SERVER=myapp.example.local PORT=8080
 make haproxy-delete NAME=myapp
 ```
 
+### WireGuard / ProtonVPN
+
+`wg:provision` (alias: `wg:apply`) does a full zero-touch ProtonVPN setup from a standard WireGuard `.conf` file. It is fully idempotent — safe to re-run when switching servers or rotating keys.
+
+#### What it configures automatically
+
+| Step | Resource |
+|------|----------|
+| 1 | WireGuard tunnel (listen port, MTU, private key) |
+| 2 | WireGuard peer (public key, endpoint, AllowedIPs, keepalive 25s) |
+| 3 | Interface assignment with static tunnel IP |
+| 4 | Gateway with external monitor IP (default `1.1.1.1`) |
+| 5 | Outbound NAT: LAN subnet → VPN interface address |
+| 6 | WAN inbound rule for the WireGuard listen port (skipped if already covered) |
+| 7 | LAN routing rule per kill-switch host: `tag=vpntraffic`, gateway → VPN |
+| 8 | Apply all changes |
+
+The existing floating WAN block rule (`tagged=vpntraffic`) provides the kill switch — if the VPN gateway goes offline, tagged traffic cannot exit WAN.
+
+#### Three steps that require the pfSense GUI (API limitation)
+
+These are printed at the end of every `wg:provision` run:
+
+1. **Gateway group** — `System > Routing > Gateway Groups > Add`  
+   Name: `ProtonVPN_GWGrp`, Trigger: Packet Loss or High Latency, Member: `PROTONVPN_GW` Tier 1  
+   Add future tunnel gateways here; the LAN routing rules already point to this group name.
+
+2. **Update LAN routing rule gateway** from the single gateway to the group  
+   `Firewall > Rules > LAN` → edit `pf-protonvpn-ks-*` rule → set gateway to `ProtonVPN_GWGrp`
+
+3. **earlyshellcmd** — `Services > Shellcmd > Add`  
+   Type: earlyshellcmd, Command: `route add -host 1.1.1.1 10.2.0.1`  
+   Ensures dpinger can reach the monitor IP after reboot before WireGuard is fully up.
+
+#### Provision first tunnel
+
+```bash
+# Download a WireGuard .conf from account.proton.me > Downloads > WireGuard
+make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-VA-78.conf KILL_SWITCH='192.168.7.6/32'
+
+# Preview without making changes
+make wg-dry-run CONF=~/Downloads/PFSenseProtonVPN01-US-VA-78.conf KILL_SWITCH='192.168.7.6/32'
+
+# Multiple kill-switch hosts
+make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-VA-78.conf \
+  KILL_SWITCH='192.168.7.6/32 192.168.7.7/32'
+```
+
+#### Provision a second tunnel (redundancy / failover)
+
+Each additional tunnel needs a unique description, interface name, listen port, and monitor IP.
+After provisioning, add the new gateway to `ProtonVPN_GWGrp` in the GUI (Tier 1 for active-active, Tier 2 for standby).
+
+```bash
+make wg-provision \
+  CONF=~/Downloads/PFSenseProtonVPN02-US-NY.conf \
+  KILL_SWITCH='192.168.7.6/32' \
+  TUNNEL=ProtonVPN02 \
+  IFACE=PROTONVPN2 \
+  LISTEN_PORT=51822 \
+  MONITOR_IP=9.9.9.9
+
+# Then in GUI: System > Routing > Gateway Groups > ProtonVPN_GWGrp > add PROTONVPN2_GW Tier 1
+# And: Services > Shellcmd > Add earlyshellcmd: route add -host 9.9.9.9 <new_gateway_ip>
+```
+
+#### Switch to a different ProtonVPN server
+
+Re-run `wg-provision` with the new `.conf`. All resources are updated in place; nothing is deleted and re-created.
+
+```bash
+make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-TX.conf KILL_SWITCH='192.168.7.6/32'
+```
+
+#### All available wg options
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `CONF` | *(required)* | Path to ProtonVPN WireGuard `.conf` file |
+| `KILL_SWITCH` | `''` | Space-separated host CIDRs to route through VPN with kill-switch |
+| `TUNNEL` | `ProtonVPN01` | Tunnel description in pfSense |
+| `IFACE` | `PROTONVPN` | Interface description in pfSense |
+| `GW` | *(derived: IFACE_GW)* | Gateway name |
+| `GW_GROUP` | `ProtonVPN_GWGrp` | Gateway group name for multi-tunnel failover |
+| `LISTEN_PORT` | `51821` | WireGuard listen port on pfSense |
+| `MTU` | `1420` | WireGuard MTU |
+| `MONITOR_IP` | `1.1.1.1` | Gateway monitor IP (must differ per tunnel) |
+| `LAN_SUBNET` | `192.168.7.0/24` | LAN subnet for outbound NAT |
+| `LAN` | `lan` | pfSense internal interface name for LAN |
+
+#### Tear down
+
+Removes all `pf-protonvpn-*` firewall rules, NAT mappings, gateway, and peers for the specified tunnel. Does not remove the WireGuard tunnel itself.
+
+```bash
+make wg-teardown                                    # defaults: ProtonVPN01 / PROTONVPN
+make wg-teardown TUNNEL=ProtonVPN02 IFACE=PROTONVPN2
+```
+
 ### HAProxy Frontend Routing
 
 Frontend routes connect hostnames to backends using ACLs and actions:
@@ -387,6 +487,10 @@ make haproxy-add        # Add HAProxy backend
 make haproxy-delete     # Delete HAProxy backend
 make add-service        # Complete service deployment (DNS + HAProxy); SSL=true for HTTPS backends
 make delete-service     # Complete service teardown (reverse of add-service)
+make wg-status          # Show WireGuard tunnel and peer status
+make wg-provision       # Full ProtonVPN provisioning from a .conf file (alias: wg-apply)
+make wg-dry-run         # Preview wg-provision without making changes
+make wg-teardown        # Remove ProtonVPN rules, NAT, gateway, and peer
 make clean              # Clean up Docker resources
 ```
 
@@ -418,6 +522,40 @@ NODE_NO_WARNINGS=1
 - Check that your client is using pfSense as DNS server
 - Confirm DNS entry was created: `make dns-list`
 - Check pfSense logs: Status > System Logs > System
+
+### WireGuard / ProtonVPN Not Connecting
+
+```bash
+# Check tunnel and peer status
+make wg-status
+
+# On pfSense shell: verify WireGuard session
+wg show
+
+# On pfSense shell: check pf state for a kill-switch host
+pfctl -ss | grep 192.168.7.6
+
+# On kill-switch host: verify exit IP is ProtonVPN, not WAN
+curl ifconfig.io
+
+# On pfSense shell: confirm gateway is online
+netstat -rn | grep 10.2.0
+```
+
+**Kill-switch host can't reach internet at all (gateway offline):**
+- Check `Status > Gateways` — PROTONVPN_GW must show Online
+- If offline, verify WireGuard tunnel: `wg show` on pfSense should show a recent handshake
+- earlyshellcmd `route add -host 1.1.1.1 10.2.0.1` must be configured (`Services > Shellcmd`)
+
+**Traffic routes through WAN instead of VPN:**
+- `pfctl -ss | grep 192.168.7.6` — check NAT address; should be `10.2.0.2`, not your WAN IP
+- Verify LAN routing rule exists and points to the gateway group (`Firewall > Rules > LAN`)
+- Confirm the LAN rule is above the VPNBalanced rule for the same source
+
+**WireGuard re-handshake fails after ~3 minutes (tunnel drops periodically):**
+- WAN firewall rule must allow UDP on the pfSense listen port (default 51821), not just 51820
+- Check `Firewall > Rules > WAN` for a rule covering port 51821 inbound
+- PersistentKeepalive=25 in the peer config keeps the pf state alive; verify with `wg show`
 
 ### HAProxy Not Routing
 - Verify backend exists: `make haproxy-list`
@@ -457,3 +595,14 @@ docker-compose build
 - **Endpoints Used**:
   - `/api/v2/services/dns_resolver/*` - DNS management
   - `/api/v2/services/haproxy/*` - HAProxy configuration
+  - `/api/v2/vpn/wireguard/tunnel` — WireGuard tunnel CRUD
+  - `/api/v2/vpn/wireguard/peer` — WireGuard peer CRUD
+  - `/api/v2/interface` — interface assignment and config
+  - `/api/v2/routing/gateway` — gateway CRUD
+  - `/api/v2/firewall/nat/outbound/mapping` — outbound NAT CRUD
+  - `/api/v2/firewall/rule` — firewall rule CRUD
+  - `/api/v2/firewall/apply`, `/api/v2/routing/apply`, etc. — apply changes
+
+**API limitations** (not exposed by pfSense REST API v2 on pfSense 2.7.x):
+- Gateway groups — configure in GUI: `System > Routing > Gateway Groups`
+- Shellcmd / earlyshellcmd — configure in GUI: `Services > Shellcmd`

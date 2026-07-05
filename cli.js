@@ -3,6 +3,7 @@
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias } = require('./lib/dns');
 const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute } = require('./lib/haproxy');
+const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -245,6 +246,82 @@ program
       await deleteFrontendRoute({
         frontendName: options.frontend,
         aclName: options.acl
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// WireGuard / ProtonVPN commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('wg:status')
+  .description('List WireGuard tunnels and peers')
+  .action(async () => {
+    try {
+      await listTunnels();
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('wg:provision <conf-file>')
+  .alias('wg:apply')
+  .description('Full zero-touch ProtonVPN WireGuard setup from a .conf file (tunnel, peer, interface, gateway, NAT, firewall)')
+  .option('-t, --tunnel <descr>',       'Tunnel description',                         'ProtonVPN01')
+  .option('-n, --iface-name <name>',    'pfSense interface description',              'PROTONVPN')
+  .option('-g, --gateway-name <name>',  'Gateway name (default: <IFACE>_GW)')
+  .option('--gw-group <name>',          'Gateway group name for multi-tunnel failover', 'ProtonVPN_GWGrp')
+  .option('-p, --listen-port <port>',   'WireGuard listen port on pfSense',           '51821')
+  .option('-m, --mtu <bytes>',          'WireGuard MTU',                              '1420')
+  .option('--monitor-ip <ip>',          'Gateway monitor IP',                         '1.1.1.1')
+  .option('-s, --lan-subnet <cidr>',    'LAN subnet for outbound NAT',                '192.168.7.0/24')
+  .option('-k, --kill-switch <host>',   'Host IP/CIDR to route through VPN with kill-switch (repeatable)', (v, a) => { a.push(v); return a; }, [])
+  .option('-l, --lan <iface>',          'LAN interface internal name (e.g. lan, opt1)', 'lan')
+  .option('--dry-run',                  'Print planned changes without applying')
+  .action(async (confFile, options) => {
+    try {
+      if (!fs.existsSync(confFile)) {
+        console.error(`Error: Config file not found: ${confFile}`);
+        process.exit(1);
+      }
+      await applyProtonVPN({
+        confFile,
+        tunnelDescr:     options.tunnel,
+        ifaceName:       options.ifaceName,
+        gatewayName:     options.gatewayName,
+        gwGroupName:     options.gwGroup,
+        listenPort:      parseInt(options.listenPort, 10),
+        mtu:             parseInt(options.mtu, 10),
+        monitorIP:       options.monitorIp,
+        lanSubnet:       options.lanSubnet,
+        killSwitchHosts: options.killSwitch,
+        lanIface:        options.lan,
+        dryRun:          !!options.dryRun,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('wg:teardown')
+  .description('Remove ProtonVPN WireGuard kill-switch rules, gateway, and peer')
+  .option('-t, --tunnel <descr>',     'Tunnel description to target', 'ProtonVPN01')
+  .option('-n, --iface-name <name>',  'pfSense interface description', 'PROTONVPN')
+  .option('-g, --gateway-name <name>','Gateway name (default: <IFACE>_GW)')
+  .action(async (options) => {
+    try {
+      await teardownProtonVPN({
+        tunnelDescr: options.tunnel,
+        ifaceName:   options.ifaceName,
+        gatewayName: options.gatewayName,
       });
     } catch (error) {
       console.error('Error:', error.message);
