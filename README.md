@@ -26,7 +26,8 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **HAProxy Frontend Routes** - Configure ACLs and actions for routing  
 ✓ **Complete Service Deployment** - One command to configure DNS + HAProxy  
 ✓ **Complete Service Teardown** - One command to remove DNS + HAProxy  
-✓ **WireGuard VPN Provisioning** - Zero-touch ProtonVPN setup from a `.conf` file: tunnel, peer, interface, gateway, NAT, kill-switch firewall rules  
+✓ **WireGuard VPN Provisioning** - Zero-touch setup from a `.conf` file: tunnel, peer, interface, gateway, NAT, kill-switch firewall rules  
+✓ **NordVPN WireGuard** - Fetch credentials from API, list/rotate servers, teardown  
 ✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
 ✓ Self-signed certificate support  
@@ -236,11 +237,13 @@ make haproxy-add NAME=myapp SERVER=myapp.example.local PORT=8080
 make haproxy-delete NAME=myapp
 ```
 
-### WireGuard / ProtonVPN
+### WireGuard
 
-`wg:provision` (alias: `wg:apply`) does a full zero-touch ProtonVPN setup from a standard WireGuard `.conf` file. It is fully idempotent — safe to re-run when switching servers or rotating keys.
+#### Generic provisioning (`wg:provision`)
 
-#### What it configures automatically
+`wg:provision` (alias: `wg:apply`) does a full zero-touch VPN setup from a standard WireGuard `.conf` file. Works with any WireGuard VPN provider. Fully idempotent — safe to re-run when switching servers or rotating keys.
+
+**What it configures automatically:**
 
 | Step | Resource |
 |------|----------|
@@ -250,72 +253,34 @@ make haproxy-delete NAME=myapp
 | 4 | Gateway with external monitor IP (default `1.1.1.1`) |
 | 5 | Outbound NAT: LAN subnet → VPN interface address |
 | 6 | WAN inbound rule for the WireGuard listen port (skipped if already covered) |
-| 7 | LAN routing rule per kill-switch host: `tag=vpntraffic`, gateway → VPN |
+| 7 | LAN routing rule per kill-switch host: gateway → VPN; fallback block rule |
 | 8 | Apply all changes |
 
 The existing floating WAN block rule (`tagged=vpntraffic`) provides the kill switch — if the VPN gateway goes offline, tagged traffic cannot exit WAN.
 
-#### Three steps that require the pfSense GUI (API limitation)
-
-These are printed at the end of every `wg:provision` run:
+**Three steps that require the pfSense GUI (API limitation) — printed at the end of every run:**
 
 1. **Gateway group** — `System > Routing > Gateway Groups > Add`  
-   Name: `ProtonVPN_GWGrp`, Trigger: Packet Loss or High Latency, Member: `PROTONVPN_GW` Tier 1  
-   Add future tunnel gateways here; the LAN routing rules already point to this group name.
+   Trigger: Packet Loss or High Latency, Member: `<GW>` Tier 1
 
 2. **Update LAN routing rule gateway** from the single gateway to the group  
-   `Firewall > Rules > LAN` → edit `pf-protonvpn-ks-*` rule → set gateway to `ProtonVPN_GWGrp`
+   `Firewall > Rules > LAN` → edit the `pf-*-ks-*` pass rule → set gateway to the group
 
-3. **earlyshellcmd** — `Services > Shellcmd > Add`  
-   Type: earlyshellcmd, Command: `route add -host 1.1.1.1 10.2.0.1`  
-   Ensures dpinger can reach the monitor IP after reboot before WireGuard is fully up.
-
-#### Provision first tunnel
+3. **Shellcmd** — `Services > Shellcmd > Add`  
+   Type: shellcmd, Command: `route add -host <MONITOR_IP> <tunnel_gateway_ip>`  
+   Ensures dpinger can reach the monitor IP after reboot before WireGuard establishes its first handshake.
 
 ```bash
-# Download a WireGuard .conf from account.proton.me > Downloads > WireGuard
-make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-VA-78.conf KILL_SWITCH='192.168.7.6/32'
-
-# Preview without making changes
-make wg-dry-run CONF=~/Downloads/PFSenseProtonVPN01-US-VA-78.conf KILL_SWITCH='192.168.7.6/32'
-
-# Multiple kill-switch hosts
-make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-VA-78.conf \
-  KILL_SWITCH='192.168.7.6/32 192.168.7.7/32'
+make wg-provision CONF=path/to/vpn.conf KILL_SWITCH='192.168.7.6/32'
+make wg-dry-run   CONF=path/to/vpn.conf KILL_SWITCH='192.168.7.6/32'   # preview only
+make wg-teardown                                                          # remove rules/NAT/gateway/peer
+make wg-teardown TUNNEL=MyVPN02 IFACE=MYVPN2
 ```
-
-#### Provision a second tunnel (redundancy / failover)
-
-Each additional tunnel needs a unique description, interface name, listen port, and monitor IP.
-After provisioning, add the new gateway to `ProtonVPN_GWGrp` in the GUI (Tier 1 for active-active, Tier 2 for standby).
-
-```bash
-make wg-provision \
-  CONF=~/Downloads/PFSenseProtonVPN02-US-NY.conf \
-  KILL_SWITCH='192.168.7.6/32' \
-  TUNNEL=ProtonVPN02 \
-  IFACE=PROTONVPN2 \
-  LISTEN_PORT=51822 \
-  MONITOR_IP=9.9.9.9
-
-# Then in GUI: System > Routing > Gateway Groups > ProtonVPN_GWGrp > add PROTONVPN2_GW Tier 1
-# And: Services > Shellcmd > Add earlyshellcmd: route add -host 9.9.9.9 <new_gateway_ip>
-```
-
-#### Switch to a different ProtonVPN server
-
-Re-run `wg-provision` with the new `.conf`. All resources are updated in place; nothing is deleted and re-created.
-
-```bash
-make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-TX.conf KILL_SWITCH='192.168.7.6/32'
-```
-
-#### All available wg options
 
 | Variable | Default | Description |
 |----------|---------|-------------|
-| `CONF` | *(required)* | Path to ProtonVPN WireGuard `.conf` file |
-| `KILL_SWITCH` | `''` | Space-separated host CIDRs to route through VPN with kill-switch |
+| `CONF` | *(required)* | Path to WireGuard `.conf` file |
+| `KILL_SWITCH` | `''` | Space-separated host CIDRs to kill-switch through the VPN |
 | `TUNNEL` | `ProtonVPN01` | Tunnel description in pfSense |
 | `IFACE` | `PROTONVPN` | Interface description in pfSense |
 | `GW` | *(derived: IFACE_GW)* | Gateway name |
@@ -326,14 +291,105 @@ make wg-provision CONF=~/Downloads/PFSenseProtonVPN01-US-TX.conf KILL_SWITCH='19
 | `LAN_SUBNET` | `192.168.7.0/24` | LAN subnet for outbound NAT |
 | `LAN` | `lan` | pfSense internal interface name for LAN |
 
-#### Tear down
+---
 
-Removes all `pf-protonvpn-*` firewall rules, NAT mappings, gateway, and peers for the specified tunnel. Does not remove the WireGuard tunnel itself.
+### NordVPN WireGuard (NordLynx)
+
+NordVPN WireGuard uses an account-wide private key (nordlynx_private_key) shared across all servers. All servers share the same public key. The NordVPN API is used to fetch credentials and find the lowest-load server.
+
+#### Initial setup
 
 ```bash
-make wg-teardown                                    # defaults: ProtonVPN01 / PROTONVPN
-make wg-teardown TUNNEL=ProtonVPN02 IFACE=PROTONVPN2
+# 1. Fetch your nordlynx_private_key and VPN credentials
+NORDVPN_TOKEN=<access_token> make nordvpn-creds
+
+# 2. List available US servers (country_id 228) sorted by load
+make nordvpn-servers
+
+# 3. Build a .conf file manually (Address derives gateway as x.x.x.x-1, omit DNS):
+#    [Interface]
+#    PrivateKey = <nordlynx_private_key>
+#    Address    = 10.5.0.2/32
+#
+#    [Peer]
+#    PublicKey          = xZSvRIZAae4khlgXjkeLVVtXTj2N1V2sORI/T4nKkDU=
+#    Endpoint           = <server_ip>:51820
+#    AllowedIPs         = 0.0.0.0/0,::/0
+#    PersistentKeepalive = 25
+
+# 4. Provision into pfSense (reuses an existing tunnel slot if --tunnel matches)
+make wg-provision \
+  CONF=NordVPNWG01-US-8495.conf \
+  TUNNEL=NordVPNWG01 \
+  IFACE=NORDVPNWG \
+  GW=NORDVPNWG_GW \
+  GW_GROUP=NordVPN_WG_GWGrp \
+  LISTEN_PORT=51821 \
+  KILL_SWITCH='192.168.7.6/32'
 ```
+
+> **Gateway derivation for NordVPN**: NordVPN's WireGuard tunnel address is `10.5.0.2/32`. Omit the `DNS` field from the conf — `wg:provision` derives the gateway as `address - 1 = 10.5.0.1`. If DNS is present it is used as the gateway instead (wrong for NordVPN).
+
+#### Server rotation
+
+Fetches the lowest-load US WireGuard server from the NordVPN API and updates the peer endpoint in pfSense without a full teardown.
+
+```bash
+NORDVPN_TOKEN=<access_token> make nordvpn-rotate-wg
+
+# Different country (country_id lookup: api.nordvpn.com/v1/servers/countries)
+NORDVPN_TOKEN=<token> make nordvpn-rotate-wg COUNTRY_ID=228
+
+# Preview without applying
+NORDVPN_TOKEN=<token> make nordvpn-rotate-wg DRY_RUN=1
+```
+
+After rotation, update `/var/db/nordvpn-wg-peer.conf` on pfSense so the watchdog has the correct endpoint for recovery:
+
+```sh
+cat > /var/db/nordvpn-wg-peer.conf << 'EOF'
+PEER_PK=<new_server_pubkey>
+ENDPOINT=<new_server_ip>:51820
+ALLOWED_IPS=0.0.0.0/0,::/0
+EOF
+```
+
+#### Watchdog (120s deadlock prevention)
+
+NordVPN WireGuard (like most WireGuard implementations) hits a REKEY_AFTER_TIME=120s deadlock when both endpoints try to re-initiate simultaneously. The watchdog prevents this by proactively resetting the peer every 85 seconds when the gateway is online, and silences initiations (removes the peer) during a 300-second backoff when the gateway is offline.
+
+```bash
+# Deploy the watchdog to pfSense (SSH as root):
+scp scripts/nordvpn-wg-watchdog.sh root@pfsense:/usr/local/bin/
+ssh root@pfsense "
+  chmod +x /usr/local/bin/nordvpn-wg-watchdog.sh
+  cat > /var/db/nordvpn-wg-peer.conf << 'EOF'
+  PEER_PK=<server_pubkey>
+  ENDPOINT=<server_ip>:51820
+  ALLOWED_IPS=0.0.0.0/0,::/0
+  EOF
+  chmod 600 /var/db/nordvpn-wg-peer.conf
+  date +%s > /var/db/nordvpn-wg-last-reset
+  echo '*/1 * * * * root /usr/local/bin/nordvpn-wg-watchdog.sh' \
+    > /etc/cron.d/nordvpn-wg-watchdog
+"
+```
+
+#### Tear down
+
+```bash
+make nordvpn-teardown-wg                  # remove rules, NAT, gateway, peer; leave tunnel
+make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
+```
+
+#### NordVPN make targets
+
+| Target | Description |
+|--------|-------------|
+| `nordvpn-servers` | List recommended WireGuard servers (`COUNTRY_ID=228`) |
+| `nordvpn-creds` | Fetch nordlynx_private_key from API (`NORDVPN_TOKEN=`) |
+| `nordvpn-rotate-wg` | Rotate to lowest-load server (`NORDVPN_TOKEN=`, `COUNTRY_ID=`, `TUNNEL=`, `DRY_RUN=`) |
+| `nordvpn-teardown-wg` | Remove kill-switch rules, NAT, gateway, peer (`TUNNEL=`, `IFACE=`, `GW=`, `DELETE_TUNNEL=`) |
 
 ### HAProxy Frontend Routing
 
@@ -487,10 +543,14 @@ make haproxy-add        # Add HAProxy backend
 make haproxy-delete     # Delete HAProxy backend
 make add-service        # Complete service deployment (DNS + HAProxy); SSL=true for HTTPS backends
 make delete-service     # Complete service teardown (reverse of add-service)
-make wg-status          # Show WireGuard tunnel and peer status
-make wg-provision       # Full ProtonVPN provisioning from a .conf file (alias: wg-apply)
-make wg-dry-run         # Preview wg-provision without making changes
-make wg-teardown        # Remove ProtonVPN rules, NAT, gateway, and peer
+make wg-status               # Show WireGuard tunnel and peer status
+make wg-provision            # Full VPN provisioning from a .conf file (alias: wg-apply)
+make wg-dry-run              # Preview wg-provision without making changes
+make wg-teardown             # Remove WireGuard rules, NAT, gateway, and peer
+make nordvpn-servers         # List recommended NordVPN WireGuard servers
+make nordvpn-creds           # Fetch NordVPN nordlynx_private_key from API
+make nordvpn-rotate-wg       # Rotate NordVPN WireGuard to lowest-load server
+make nordvpn-teardown-wg     # Remove NordVPN WireGuard rules, NAT, gateway, peer
 make clean              # Clean up Docker resources
 ```
 
@@ -523,39 +583,40 @@ NODE_NO_WARNINGS=1
 - Confirm DNS entry was created: `make dns-list`
 - Check pfSense logs: Status > System Logs > System
 
-### WireGuard / ProtonVPN Not Connecting
+### WireGuard Not Connecting
 
 ```bash
 # Check tunnel and peer status
 make wg-status
 
-# On pfSense shell: verify WireGuard session
+# On pfSense shell: verify WireGuard session (latest-handshake should be recent)
 wg show
 
 # On pfSense shell: check pf state for a kill-switch host
 pfctl -ss | grep 192.168.7.6
 
-# On kill-switch host: verify exit IP is ProtonVPN, not WAN
+# On kill-switch host: verify exit IP is VPN, not WAN
 curl ifconfig.io
 
-# On pfSense shell: confirm gateway is online
-netstat -rn | grep 10.2.0
+# On pfSense shell: confirm gateway is online and routing table has tunnel gateway
+netstat -rn | grep 10.5.0
 ```
 
-**Kill-switch host can't reach internet at all (gateway offline):**
-- Check `Status > Gateways` — PROTONVPN_GW must show Online
-- If offline, verify WireGuard tunnel: `wg show` on pfSense should show a recent handshake
-- earlyshellcmd `route add -host 1.1.1.1 10.2.0.1` must be configured (`Services > Shellcmd`)
+**Kill-switch host can't reach internet (gateway offline):**
+- Check `Status > Gateways` — gateway must show Online
+- If offline: `wg show` on pfSense should show a recent handshake; if not, the tunnel is down
+- Shellcmd `route add -host <MONITOR_IP> <tunnel_gateway_ip>` must be configured (`Services > Shellcmd`)
 
 **Traffic routes through WAN instead of VPN:**
-- `pfctl -ss | grep 192.168.7.6` — check NAT address; should be `10.2.0.2`, not your WAN IP
+- `pfctl -ss | grep 192.168.7.6` — NAT address should be the tunnel IP, not your WAN IP
 - Verify LAN routing rule exists and points to the gateway group (`Firewall > Rules > LAN`)
-- Confirm the LAN rule is above the VPNBalanced rule for the same source
+- Confirm the LAN kill-switch rule is above the VPNBalanced rule for the same source
 
-**WireGuard re-handshake fails after ~3 minutes (tunnel drops periodically):**
-- WAN firewall rule must allow UDP on the pfSense listen port (default 51821), not just 51820
-- Check `Firewall > Rules > WAN` for a rule covering port 51821 inbound
-- PersistentKeepalive=25 in the peer config keeps the pf state alive; verify with `wg show`
+**WireGuard tunnel drops every ~2 minutes (120s REKEY deadlock):**
+- This is a known WireGuard behavior when both endpoints try to re-key simultaneously
+- Deploy `scripts/nordvpn-wg-watchdog.sh` (NordVPN) to proactively reset the peer every 85s
+- WAN firewall rule must allow UDP on the pfSense listen port (default 51821)
+- `PersistentKeepalive = 25` in the peer config is required; verify with `wg show`
 
 ### HAProxy Not Routing
 - Verify backend exists: `make haproxy-list`

@@ -4,6 +4,7 @@ const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias } = require('./lib/dns');
 const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
+const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -322,6 +323,84 @@ program
         tunnelDescr: options.tunnel,
         ifaceName:   options.ifaceName,
         gatewayName: options.gatewayName,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// NordVPN commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('nordvpn:rotate-wg')
+  .description('Rotate NordVPN WireGuard peer to the lowest-load server from the API')
+  .option('--token <token>',       'NordVPN access token (default: NORDVPN_TOKEN env var)')
+  .option('--country-id <id>',     'NordVPN country ID (228 = US)',                 '228')
+  .option('-t, --tunnel <descr>',  'WireGuard tunnel description in pfSense',       'ProtonVPN01')
+  .option('-m, --monitor-ip <ip>', 'Gateway monitor IP (informational only)',       '1.1.1.1')
+  .option('--dry-run',             'Print planned change without applying')
+  .action(async (options) => {
+    try {
+      await rotateNordVPNWG({
+        accessToken: options.token || process.env.NORDVPN_TOKEN,
+        countryId:   parseInt(options.countryId, 10),
+        tunnelDescr: options.tunnel,
+        monitorIP:   options.monitorIp,
+        dryRun:      !!options.dryRun,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('nordvpn:creds')
+  .description('Fetch NordVPN WireGuard credentials (nordlynx_private_key) from the API')
+  .option('--token <token>', 'NordVPN access token (default: NORDVPN_TOKEN env var)')
+  .action(async (options) => {
+    try {
+      await printNordVPNCreds(options.token || process.env.NORDVPN_TOKEN);
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('nordvpn:teardown-wg')
+  .description('Remove NordVPN WireGuard kill-switch rules, gateway, NAT, interface, and peer')
+  .option('-t, --tunnel <descr>',    'WireGuard tunnel description',    'NordVPNWG01')
+  .option('-n, --iface-name <name>', 'pfSense interface description',   'NORDVPNWG')
+  .option('-g, --gateway-name <name>','Gateway name (default: <IFACE>_GW)')
+  .option('--delete-tunnel',         'Also delete the WireGuard tunnel (not just the peer)')
+  .action(async (options) => {
+    try {
+      await teardownNordVPNWG({
+        tunnelDescr:  options.tunnel,
+        ifaceName:    options.ifaceName,
+        gatewayName:  options.gatewayName,
+        deleteTunnel: !!options.deleteTunnel,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('nordvpn:servers')
+  .description('List recommended NordVPN WireGuard servers for a country')
+  .option('--country-id <id>', 'NordVPN country ID (228 = US)', '228')
+  .option('-n, --limit <n>',   'Number of servers to show',     '10')
+  .action(async (options) => {
+    try {
+      await listNordVPNServers({
+        countryId: parseInt(options.countryId, 10),
+        limit:     parseInt(options.limit, 10),
       });
     } catch (error) {
       console.error('Error:', error.message);

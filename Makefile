@@ -231,11 +231,48 @@ wg-dry-run: ## Preview wg-provision without applying changes (same options as wg
 	fi
 	@node cli.js wg:provision "$(CONF)" $(call _wg_flags) --dry-run
 
-wg-teardown: ## Remove ProtonVPN rules, NAT, gateway, and peer ([TUNNEL=ProtonVPN01] [IFACE=PROTONVPN] [GW=])
+wg-teardown: ## Remove WireGuard rules, NAT, gateway, and peer ([TUNNEL=ProtonVPN01] [IFACE=PROTONVPN] [GW=])
 	@node cli.js wg:teardown \
 	  --tunnel "$(TUNNEL)" \
 	  --iface-name "$(IFACE)" \
 	  $(if $(GW),--gateway-name "$(GW)")
+
+##@ NordVPN WireGuard
+
+NORDVPN_TOKEN ?=
+COUNTRY_ID    ?= 228
+DRY_RUN       ?=
+DELETE_TUNNEL ?=
+
+nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228])
+	@node cli.js nordvpn:servers --country-id "$(COUNTRY_ID)"
+
+nordvpn-creds: ## Fetch NordVPN nordlynx_private_key and VPN credentials (NORDVPN_TOKEN=)
+	@if [ -z "$(NORDVPN_TOKEN)" ]; then \
+		echo "Error: NORDVPN_TOKEN is required"; \
+		echo "Usage: make nordvpn-creds NORDVPN_TOKEN=<access_token>"; \
+		exit 1; \
+	fi
+	@NORDVPN_TOKEN="$(NORDVPN_TOKEN)" node cli.js nordvpn:creds --token "$(NORDVPN_TOKEN)"
+
+nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server (NORDVPN_TOKEN= [COUNTRY_ID=228] [TUNNEL=NordVPNWG01] [DRY_RUN=1])
+	@if [ -z "$(NORDVPN_TOKEN)" ]; then \
+		echo "Error: NORDVPN_TOKEN is required"; \
+		echo "Usage: make nordvpn-rotate-wg NORDVPN_TOKEN=<access_token>"; \
+		exit 1; \
+	fi
+	@node cli.js nordvpn:rotate-wg \
+	  --token "$(NORDVPN_TOKEN)" \
+	  --country-id "$(COUNTRY_ID)" \
+	  $(if $(TUNNEL),--tunnel "$(TUNNEL)") \
+	  $(if $(DRY_RUN),--dry-run)
+
+nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([TUNNEL=NordVPNWG01] [IFACE=NORDVPNWG] [GW=] [DELETE_TUNNEL=1])
+	@node cli.js nordvpn:teardown-wg \
+	  $(if $(TUNNEL),--tunnel "$(TUNNEL)") \
+	  $(if $(IFACE),--iface-name "$(IFACE)") \
+	  $(if $(GW),--gateway-name "$(GW)") \
+	  $(if $(DELETE_TUNNEL),--delete-tunnel)
 
 ##@ Infrastructure
 
