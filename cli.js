@@ -4,6 +4,7 @@ const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias } = require('./lib/dns');
 const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
+const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const fs = require('fs');
 const path = require('path');
@@ -283,6 +284,7 @@ program
   .option('--monitor-ip <ip>',          'Gateway monitor IP',                         '1.1.1.1')
   .option('-s, --lan-subnet <cidr>',    'LAN subnet for outbound NAT',                '192.168.7.0/24')
   .option('-k, --kill-switch <host>',   'Host IP/CIDR to route through VPN with kill-switch (repeatable)', (v, a) => { a.push(v); return a; }, [])
+  .option('--ks-alias <name>',          'pfSense firewall alias to use as kill-switch source (creates alias if missing)')
   .option('-l, --lan <iface>',          'LAN interface internal name (e.g. lan, opt1)', 'lan')
   .option('--dry-run',                  'Print planned changes without applying')
   .action(async (confFile, options) => {
@@ -302,6 +304,7 @@ program
         monitorIP:       options.monitorIp,
         lanSubnet:       options.lanSubnet,
         killSwitchHosts: options.killSwitch,
+        killSwitchAlias: options.ksAlias || null,
         lanIface:        options.lan,
         dryRun:          !!options.dryRun,
       });
@@ -317,12 +320,14 @@ program
   .option('-t, --tunnel <descr>',     'Tunnel description to target', 'ProtonVPN01')
   .option('-n, --iface-name <name>',  'pfSense interface description', 'PROTONVPN')
   .option('-g, --gateway-name <name>','Gateway name (default: <IFACE>_GW)')
+  .option('--ks-alias <name>',        'Also delete the named kill-switch alias')
   .action(async (options) => {
     try {
       await teardownProtonVPN({
-        tunnelDescr: options.tunnel,
-        ifaceName:   options.ifaceName,
-        gatewayName: options.gatewayName,
+        tunnelDescr:     options.tunnel,
+        ifaceName:       options.ifaceName,
+        gatewayName:     options.gatewayName,
+        killSwitchAlias: options.ksAlias || null,
       });
     } catch (error) {
       console.error('Error:', error.message);
@@ -402,6 +407,86 @@ program
         countryId: parseInt(options.countryId, 10),
         limit:     parseInt(options.limit, 10),
       });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Firewall alias commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('fw-alias:list')
+  .description('List pfSense firewall aliases')
+  .option('-f, --filter <text>', 'Filter by name or description')
+  .action(async (options) => {
+    try {
+      await listAliases({ filter: options.filter });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-alias:create')
+  .description('Create or update a pfSense firewall alias')
+  .requiredOption('-n, --name <name>',       'Alias name (alphanumeric + underscore)')
+  .option('-t, --type <type>',               'Alias type: host | network | port', 'host')
+  .option('-D, --description <description>', 'Alias description')
+  .option('-H, --host <ip>',                 'Host/IP to include (repeatable)', (v, a) => { a.push(v); return a; }, [])
+  .action(async (options) => {
+    try {
+      await createOrUpdateAlias({
+        name:        options.name,
+        type:        options.type,
+        description: options.description || '',
+        hosts:       options.host,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-alias:add-host')
+  .description('Add a host/IP to an existing pfSense firewall alias')
+  .requiredOption('-n, --name <name>',   'Alias name')
+  .requiredOption('-H, --host <ip>',     'Host or IP to add')
+  .option('-d, --detail <comment>',      'Comment for this entry')
+  .action(async (options) => {
+    try {
+      await addAliasHost({ name: options.name, host: options.host, detail: options.detail || '' });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-alias:remove-host')
+  .description('Remove a host/IP from a pfSense firewall alias')
+  .requiredOption('-n, --name <name>',   'Alias name')
+  .requiredOption('-H, --host <ip>',     'Host or IP to remove')
+  .action(async (options) => {
+    try {
+      await removeAliasHost({ name: options.name, host: options.host });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-alias:delete')
+  .description('Delete a pfSense firewall alias')
+  .requiredOption('-n, --name <name>', 'Alias name')
+  .action(async (options) => {
+    try {
+      await deleteAlias({ name: options.name });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

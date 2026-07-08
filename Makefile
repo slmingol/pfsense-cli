@@ -1,4 +1,4 @@
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete
 
 .DEFAULT_GOAL := help
 
@@ -16,6 +16,7 @@ MTU         ?= 1420
 MONITOR_IP  ?= 1.1.1.1
 LAN_SUBNET  ?= 192.168.7.0/24
 LAN         ?= lan
+KS_ALIAS    ?=
 
 help: ## Show this help message
 	@printf "\n\033[1;37mpfSense CLI\033[0m — DNS & HAProxy management\n\n"
@@ -39,11 +40,15 @@ help: ## Show this help message
 	@printf "  \033[32mmake dns-list\033[0m      \033[90m# list all DNS entries\033[0m\n"
 	@printf "  \033[32mmake haproxy-list\033[0m  \033[90m# list all HAProxy backends\033[0m\n"
 	@printf "\n"
-	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'\n"
+	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32' KS_ALIAS=NordVPN_KS_Hosts\n"
 	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32 192.168.7.7/32' TUNNEL=ProtonVPN02 IFACE=PROTONVPN2 LISTEN_PORT=51822 MONITOR_IP=9.9.9.9\n"
 	@printf "  \033[32mmake wg-dry-run\033[0m   CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'\n"
-	@printf "  \033[32mmake wg-teardown\033[0m  \033[90m# remove ProtonVPN rules, gateway, peer, NAT\033[0m\n"
+	@printf "  \033[32mmake wg-teardown\033[0m  KS_ALIAS=NordVPN_KS_Hosts \033[90m# remove rules, gateway, peer, NAT, and alias\033[0m\n"
 	@printf "  \033[32mmake wg-status\033[0m    \033[90m# show tunnel and peer status\033[0m\n"
+	@printf "\n"
+	@printf "  \033[32mmake fw-alias-list\033[0m                                         \033[90m# list all firewall aliases\033[0m\n"
+	@printf "  \033[32mmake fw-alias-add-host\033[0m    NAME=NordVPN_KS_Hosts HOST=192.168.7.7 DETAIL='pi-vpn2'\n"
+	@printf "  \033[32mmake fw-alias-remove-host\033[0m NAME=NordVPN_KS_Hosts HOST=192.168.7.7\n"
 	@printf "\n"
 	@printf "For CLI help: \033[36mmake cli-help\033[0m\n\n"
 
@@ -207,7 +212,8 @@ define _wg_flags
   --monitor-ip "$(MONITOR_IP)" \
   --lan-subnet "$(LAN_SUBNET)" \
   --lan "$(LAN)" \
-  $(_KS_FLAGS)
+  $(_KS_FLAGS) \
+  $(if $(KS_ALIAS),--ks-alias "$(KS_ALIAS)")
 endef
 
 wg-status: ## Show WireGuard tunnel and peer status
@@ -231,11 +237,12 @@ wg-dry-run: ## Preview wg-provision without applying changes (same options as wg
 	fi
 	@node cli.js wg:provision "$(CONF)" $(call _wg_flags) --dry-run
 
-wg-teardown: ## Remove WireGuard rules, NAT, gateway, and peer ([TUNNEL=ProtonVPN01] [IFACE=PROTONVPN] [GW=])
+wg-teardown: ## Remove WireGuard rules, NAT, gateway, and peer ([TUNNEL=ProtonVPN01] [IFACE=PROTONVPN] [GW=] [KS_ALIAS=])
 	@node cli.js wg:teardown \
 	  --tunnel "$(TUNNEL)" \
 	  --iface-name "$(IFACE)" \
-	  $(if $(GW),--gateway-name "$(GW)")
+	  $(if $(GW),--gateway-name "$(GW)") \
+	  $(if $(KS_ALIAS),--ks-alias "$(KS_ALIAS)")
 
 ##@ NordVPN WireGuard
 
@@ -273,6 +280,51 @@ nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([TUN
 	  $(if $(IFACE),--iface-name "$(IFACE)") \
 	  $(if $(GW),--gateway-name "$(GW)") \
 	  $(if $(DELETE_TUNNEL),--delete-tunnel)
+
+##@ Firewall Aliases
+
+# Alias name for kill-switch hosts vars
+NAME   ?=
+HOST   ?=
+DETAIL ?=
+TYPE   ?= host
+
+fw-alias-list: ## List pfSense firewall aliases ([FILTER=])
+	@node cli.js fw-alias:list $(if $(FILTER),--filter "$(FILTER)")
+
+fw-alias-create: ## Create or update a firewall alias (NAME= [TYPE=host] [HOST='ip1 ip2'] [DESC=])
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make fw-alias-create NAME=NordVPN_KS_Hosts HOST='192.168.7.6' DESC='NordVPN kill-switch hosts'"; \
+		exit 1; \
+	fi
+	@node cli.js fw-alias:create --name "$(NAME)" --type "$(TYPE)" \
+	  $(if $(DESC),--description "$(DESC)") \
+	  $(foreach h,$(HOST),--host $(h))
+
+fw-alias-add-host: ## Add a host to a firewall alias (NAME= HOST= [DETAIL=])
+	@if [ -z "$(NAME)" ] || [ -z "$(HOST)" ]; then \
+		echo "Error: NAME and HOST are required"; \
+		echo "Usage: make fw-alias-add-host NAME=NordVPN_KS_Hosts HOST=192.168.7.7 DETAIL='pi-vpn2'"; \
+		exit 1; \
+	fi
+	@node cli.js fw-alias:add-host --name "$(NAME)" --host "$(HOST)" $(if $(DETAIL),--detail "$(DETAIL)")
+
+fw-alias-remove-host: ## Remove a host from a firewall alias (NAME= HOST=)
+	@if [ -z "$(NAME)" ] || [ -z "$(HOST)" ]; then \
+		echo "Error: NAME and HOST are required"; \
+		echo "Usage: make fw-alias-remove-host NAME=NordVPN_KS_Hosts HOST=192.168.7.7"; \
+		exit 1; \
+	fi
+	@node cli.js fw-alias:remove-host --name "$(NAME)" --host "$(HOST)"
+
+fw-alias-delete: ## Delete a firewall alias (NAME=)
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make fw-alias-delete NAME=NordVPN_KS_Hosts"; \
+		exit 1; \
+	fi
+	@node cli.js fw-alias:delete --name "$(NAME)"
 
 ##@ Infrastructure
 
