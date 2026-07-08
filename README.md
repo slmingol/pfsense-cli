@@ -391,6 +391,55 @@ make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
 | `nordvpn-rotate-wg` | Rotate to lowest-load server (`NORDVPN_TOKEN=`, `COUNTRY_ID=`, `TUNNEL=`, `DRY_RUN=`) |
 | `nordvpn-teardown-wg` | Remove kill-switch rules, NAT, gateway, peer (`TUNNEL=`, `IFACE=`, `GW=`, `DELETE_TUNNEL=`) |
 
+### Alternative: Gluetun (Docker-based VPN client)
+
+[Gluetun](https://github.com/qdm12/gluetun) is a Docker container that manages VPN connections directly, with native support for ProtonVPN, NordVPN, Mullvad, and many others. It is an alternative to configuring WireGuard inside pfSense.
+
+**How it differs from the pfSense approach:**
+
+| | pfSense WireGuard (this tool) | Gluetun |
+|---|---|---|
+| VPN scope | Whole network or per-firewall-rule | Per Docker container or host |
+| Peer renewal | Manual or watchdog script | Automatic (`UPDATER_PERIOD`) |
+| Kill switch | pfSense floating firewall rule | Built-in container firewall |
+| Complexity | High (API provisioning, watchdog) | Low (env vars in docker-compose) |
+
+**When to use Gluetun instead:**
+
+- You only need specific Docker services (e.g. a torrent client, a media grabber) to route through VPN, not your whole LAN
+- You want automatic peer renewal without watchdog scripts — Gluetun fetches fresh server configs on a schedule and reconnects when a peer goes stale
+- You want a simpler setup that doesn't touch pfSense at all
+
+**When to stick with pfSense WireGuard (this tool):**
+
+- You need whole-network or subnet-level VPN routing enforced at the firewall
+- You need kill-switch guarantees at the network layer, not just per-container
+- You need gateway groups and failover across multiple VPN tunnels
+
+**Quick example (ProtonVPN via Gluetun):**
+
+```yaml
+services:
+  gluetun:
+    image: qmcgaw/gluetun
+    cap_add:
+      - NET_ADMIN
+    devices:
+      - /dev/net/tun:/dev/net/tun
+    environment:
+      - VPN_SERVICE_PROVIDER=protonvpn
+      - VPN_TYPE=wireguard
+      - WIREGUARD_PRIVATE_KEY=<your-private-key>
+      - SERVER_COUNTRIES=US
+      - UPDATER_PERIOD=24h   # auto-refresh server list and reconnect
+
+  my-app:
+    image: my-app
+    network_mode: service:gluetun   # routes through VPN
+```
+
+The `UPDATER_PERIOD` setting is what resolves the peer renewal problem encountered with pfSense: Gluetun periodically pulls a fresh server list from the provider API and reconnects, eliminating the need for watchdog scripts or manual key rotation.
+
 ### HAProxy Frontend Routing
 
 Frontend routes connect hostnames to backends using ACLs and actions:
