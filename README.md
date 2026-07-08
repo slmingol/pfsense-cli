@@ -28,6 +28,7 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **Complete Service Teardown** - One command to remove DNS + HAProxy  
 ✓ **WireGuard VPN Provisioning** - Zero-touch setup from a `.conf` file: tunnel, peer, interface, gateway, NAT, kill-switch firewall rules  
 ✓ **NordVPN WireGuard** - Fetch credentials from API, list/rotate servers, teardown  
+✓ **Firewall Alias Management** - Create/update pfSense host aliases; add or remove IPs without touching firewall rules  
 ✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
 ✓ Self-signed certificate support  
@@ -253,10 +254,12 @@ make haproxy-delete NAME=myapp
 | 4 | Gateway with external monitor IP (default `1.1.1.1`) |
 | 5 | Outbound NAT: LAN subnet → VPN interface address |
 | 6 | WAN inbound rule for the WireGuard listen port (skipped if already covered) |
-| 7 | LAN routing rule per kill-switch host: gateway → VPN; fallback block rule |
+| 7 | Kill-switch LAN rules — alias mode (one pass + one block rule referencing a named alias) or per-IP mode (one pair per CIDR) |
 | 8 | Apply all changes |
 
 The existing floating WAN block rule (`tagged=vpntraffic`) provides the kill switch — if the VPN gateway goes offline, tagged traffic cannot exit WAN.
+
+**Alias-based kill-switch** (`KS_ALIAS=`): instead of one rule pair per IP, provision creates/updates a named pfSense host alias with the kill-switch IPs and attaches a single pass+block rule pair to it. Adding hosts to the VPN route later only requires updating the alias — no new rules needed.
 
 **Three steps that require the pfSense GUI (API limitation) — printed at the end of every run:**
 
@@ -271,9 +274,15 @@ The existing floating WAN block rule (`tagged=vpntraffic`) provides the kill swi
    Ensures dpinger can reach the monitor IP after reboot before WireGuard establishes its first handshake.
 
 ```bash
+# Alias mode (recommended): one rule pair references the alias; add IPs later without new rules
+make wg-provision CONF=path/to/vpn.conf KILL_SWITCH='192.168.7.6/32' KS_ALIAS=RouteThroughNordVPN_WG
+make wg-dry-run   CONF=path/to/vpn.conf KILL_SWITCH='192.168.7.6/32' KS_ALIAS=RouteThroughNordVPN_WG
+
+# Per-IP mode (legacy): one rule pair per CIDR
 make wg-provision CONF=path/to/vpn.conf KILL_SWITCH='192.168.7.6/32'
-make wg-dry-run   CONF=path/to/vpn.conf KILL_SWITCH='192.168.7.6/32'   # preview only
-make wg-teardown                                                          # remove rules/NAT/gateway/peer
+
+make wg-teardown                              # remove rules/NAT/gateway/peer
+make wg-teardown KS_ALIAS=RouteThroughNordVPN_WG  # also delete the alias
 make wg-teardown TUNNEL=MyVPN02 IFACE=MYVPN2
 ```
 
@@ -281,6 +290,7 @@ make wg-teardown TUNNEL=MyVPN02 IFACE=MYVPN2
 |----------|---------|-------------|
 | `CONF` | *(required)* | Path to WireGuard `.conf` file |
 | `KILL_SWITCH` | `''` | Space-separated host CIDRs to kill-switch through the VPN |
+| `KS_ALIAS` | `''` | pfSense alias name to use as kill-switch source (creates/updates the alias with `KILL_SWITCH` IPs) |
 | `TUNNEL` | `ProtonVPN01` | Tunnel description in pfSense |
 | `IFACE` | `PROTONVPN` | Interface description in pfSense |
 | `GW` | *(derived: IFACE_GW)* | Gateway name |
@@ -325,7 +335,8 @@ make wg-provision \
   GW=NORDVPNWG_GW \
   GW_GROUP=NordVPN_WG_GWGrp \
   LISTEN_PORT=51821 \
-  KILL_SWITCH='192.168.7.6/32'
+  KILL_SWITCH='192.168.7.6/32' \
+  KS_ALIAS=RouteThroughNordVPN_WG
 ```
 
 > **Gateway derivation for NordVPN**: NordVPN's WireGuard tunnel address is `10.5.0.2/32`. Omit the `DNS` field from the conf — `wg:provision` derives the gateway as `address - 1 = 10.5.0.1`. If DNS is present it is used as the gateway instead (wrong for NordVPN).
@@ -390,6 +401,37 @@ make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
 | `nordvpn-creds` | Fetch nordlynx_private_key from API (`NORDVPN_TOKEN=`) |
 | `nordvpn-rotate-wg` | Rotate to lowest-load server (`NORDVPN_TOKEN=`, `COUNTRY_ID=`, `TUNNEL=`, `DRY_RUN=`) |
 | `nordvpn-teardown-wg` | Remove kill-switch rules, NAT, gateway, peer (`TUNNEL=`, `IFACE=`, `GW=`, `DELETE_TUNNEL=`) |
+
+### Firewall Alias Management
+
+pfSense firewall aliases are named groups of IPs, networks, or ports that can be referenced in firewall rules. Managing kill-switch hosts through an alias means adding a new host to the VPN route only requires updating the alias — no new rules are needed.
+
+```bash
+# List all aliases (or filter by name)
+make fw-alias-list
+make fw-alias-list FILTER=NordVPN
+
+# Add a host to the kill-switch alias
+make fw-alias-add-host NAME=RouteThroughNordVPN_WG HOST=192.168.7.7 DETAIL='pi-vpn2'
+
+# Remove a host
+make fw-alias-remove-host NAME=RouteThroughNordVPN_WG HOST=192.168.7.7
+
+# Create a new alias with initial hosts
+make fw-alias-create NAME=RouteThroughNordVPN_WG HOST='192.168.7.6' DESC='Kill-switch hosts routed via NordVPN WireGuard'
+
+# Delete an alias entirely
+make fw-alias-delete NAME=RouteThroughNordVPN_WG
+```
+
+The `RouteThroughNordVPN_WG` alias is referenced by two firewall rules in `Firewall > Rules > LAN`:
+
+| Rule | Type | Source | Gateway |
+|------|------|--------|---------|
+| `pf-protonvpn-ks-RouteThroughNordVPN_WG` | pass | `RouteThroughNordVPN_WG` | `NordVPN_WG_GWGrp` |
+| `pf-protonvpn-ks-fallback-RouteThroughNordVPN_WG` | block | `RouteThroughNordVPN_WG` | *(none — kill-switch fallback)* |
+
+The pass rule must sit above the general VPN routing rule; the block rule must immediately follow. Both are created automatically by `wg-provision KS_ALIAS=...`.
 
 ### Alternative: Gluetun (Docker-based VPN client)
 
@@ -595,11 +637,16 @@ make delete-service     # Complete service teardown (reverse of add-service)
 make wg-status               # Show WireGuard tunnel and peer status
 make wg-provision            # Full VPN provisioning from a .conf file (alias: wg-apply)
 make wg-dry-run              # Preview wg-provision without making changes
-make wg-teardown             # Remove WireGuard rules, NAT, gateway, and peer
+make wg-teardown             # Remove WireGuard rules, NAT, gateway, and peer (KS_ALIAS= to also delete alias)
 make nordvpn-servers         # List recommended NordVPN WireGuard servers
 make nordvpn-creds           # Fetch NordVPN nordlynx_private_key from API
 make nordvpn-rotate-wg       # Rotate NordVPN WireGuard to lowest-load server
 make nordvpn-teardown-wg     # Remove NordVPN WireGuard rules, NAT, gateway, peer
+make fw-alias-list           # List pfSense firewall aliases (FILTER= optional)
+make fw-alias-create         # Create or update a host alias (NAME= HOST= DESC=)
+make fw-alias-add-host       # Add a host/IP to an alias (NAME= HOST= DETAIL=)
+make fw-alias-remove-host    # Remove a host/IP from an alias (NAME= HOST=)
+make fw-alias-delete         # Delete an alias (NAME=)
 make clean              # Clean up Docker resources
 ```
 
@@ -711,6 +758,7 @@ docker-compose build
   - `/api/v2/routing/gateway` — gateway CRUD
   - `/api/v2/firewall/nat/outbound/mapping` — outbound NAT CRUD
   - `/api/v2/firewall/rule` — firewall rule CRUD
+  - `/api/v2/firewall/alias` — firewall alias CRUD
   - `/api/v2/firewall/apply`, `/api/v2/routing/apply`, etc. — apply changes
 
 **API limitations** (not exposed by pfSense REST API v2 on pfSense 2.7.x):
