@@ -289,70 +289,70 @@ HOST   ?=
 DETAIL ?=
 TYPE   ?= host
 
-# Rule-specific vars
+# Rule-specific vars (prefixed with RULE_ to avoid collision with WireGuard defaults)
 RULE_ID    ?=
 RULE_TYPE  ?=
-IFACE      ?=
-SOURCE     ?= any
-SOURCE_PORT ?=
-DEST       ?= any
-DEST_PORT  ?=
-PROTO      ?=
-IP_VER     ?= inet
-GW         ?=
-TAG        ?=
-DESC       ?=
+RULE_IFACE ?=
+RULE_SRC   ?= any
+RULE_SPORT ?=
+RULE_DEST  ?= any
+RULE_DPORT ?=
+RULE_PROTO ?=
+RULE_IPVER ?= inet
+RULE_GW    ?=
+RULE_TAG   ?=
+RULE_DESC  ?=
 
-fw-rule-list: ## List firewall rules ([FILTER=] [IFACE=] [TYPE=pass|block])
+fw-rule-list: ## List firewall rules ([FILTER=] [RULE_IFACE=lan|wan] [RULE_TYPE=pass|block])
 	@node cli.js fw-rule:list \
 	  $(if $(FILTER),--filter "$(FILTER)") \
-	  $(if $(IFACE),--interface "$(IFACE)") \
-	  $(if $(TYPE),--type "$(TYPE)")
+	  $(if $(RULE_IFACE),--interface "$(RULE_IFACE)") \
+	  $(if $(RULE_TYPE),--type "$(RULE_TYPE)")
 
-fw-rule-add: ## Add a firewall rule (RULE_TYPE= IFACE= [SOURCE=any] [DEST=any] [PROTO=] [GW=] [DESC=] [TAG=] [SOURCE_PORT=] [DEST_PORT=])
-	@if [ -z "$(RULE_TYPE)" ] || [ -z "$(IFACE)" ]; then \
-		echo "Error: RULE_TYPE and IFACE are required"; \
-		echo "Usage: make fw-rule-add RULE_TYPE=pass IFACE=lan SOURCE=MyAlias DEST=any GW=NordVPN_WG_GWGrp DESC='My rule'"; \
+fw-rule-add: ## Add a firewall rule (RULE_TYPE= RULE_IFACE= [RULE_SRC=any] [RULE_DEST=any] [RULE_PROTO=] [RULE_GW=] [RULE_DESC=])
+	@if [ -z "$(RULE_TYPE)" ] || [ -z "$(RULE_IFACE)" ]; then \
+		echo "Error: RULE_TYPE and RULE_IFACE are required"; \
+		echo "Usage: make fw-rule-add RULE_TYPE=pass RULE_IFACE=lan RULE_SRC=MyAlias RULE_GW=NordVPN_WG_GWGrp RULE_DESC='My rule'"; \
 		exit 1; \
 	fi
 	@node cli.js fw-rule:add \
 	  --type "$(RULE_TYPE)" \
-	  --interface "$(IFACE)" \
-	  --source "$(SOURCE)" \
-	  --destination "$(DEST)" \
-	  --ip-version "$(IP_VER)" \
-	  $(if $(SOURCE_PORT),--source-port "$(SOURCE_PORT)") \
-	  $(if $(DEST_PORT),--dest-port "$(DEST_PORT)") \
-	  $(if $(PROTO),--protocol "$(PROTO)") \
-	  $(if $(GW),--gateway "$(GW)") \
-	  $(if $(TAG),--tag "$(TAG)") \
-	  $(if $(DESC),--description "$(DESC)")
+	  --interface "$(RULE_IFACE)" \
+	  --source "$(RULE_SRC)" \
+	  --destination "$(RULE_DEST)" \
+	  --ip-version "$(RULE_IPVER)" \
+	  $(if $(RULE_SPORT),--source-port "$(RULE_SPORT)") \
+	  $(if $(RULE_DPORT),--dest-port "$(RULE_DPORT)") \
+	  $(if $(RULE_PROTO),--protocol "$(RULE_PROTO)") \
+	  $(if $(RULE_GW),--gateway "$(RULE_GW)") \
+	  $(if $(RULE_TAG),--tag "$(RULE_TAG)") \
+	  $(if $(RULE_DESC),--description "$(RULE_DESC)")
 
-fw-rule-delete: ## Delete a firewall rule (RULE_ID= or DESC=)
-	@if [ -z "$(RULE_ID)" ] && [ -z "$(DESC)" ]; then \
-		echo "Error: RULE_ID or DESC is required"; \
+fw-rule-delete: ## Delete a firewall rule (RULE_ID= or RULE_DESC=)
+	@if [ -z "$(RULE_ID)" ] && [ -z "$(RULE_DESC)" ]; then \
+		echo "Error: RULE_ID or RULE_DESC is required"; \
 		echo "Usage: make fw-rule-delete RULE_ID=15"; \
-		echo "       make fw-rule-delete DESC='my rule description'"; \
+		echo "       make fw-rule-delete RULE_DESC='my rule description'"; \
 		exit 1; \
 	fi
 	@node cli.js fw-rule:delete \
 	  $(if $(RULE_ID),--id "$(RULE_ID)") \
-	  $(if $(DESC),--description "$(DESC)")
+	  $(if $(RULE_DESC),--description "$(RULE_DESC)")
 
-fw-rule-update: ## Update a firewall rule (RULE_ID= or DESC=, then any of: RULE_TYPE= IFACE= SOURCE= DEST= PROTO= GW= ENABLE=1 DISABLE=1)
-	@if [ -z "$(RULE_ID)" ] && [ -z "$(DESC)" ]; then \
-		echo "Error: RULE_ID or DESC is required"; \
+fw-rule-update: ## Update a firewall rule (RULE_ID= or RULE_DESC=, then any of: RULE_TYPE= RULE_IFACE= RULE_SRC= RULE_DEST= RULE_PROTO= RULE_GW= ENABLE=1 DISABLE=1)
+	@if [ -z "$(RULE_ID)" ] && [ -z "$(RULE_DESC)" ]; then \
+		echo "Error: RULE_ID or RULE_DESC is required"; \
 		exit 1; \
 	fi
 	@node cli.js fw-rule:update \
 	  $(if $(RULE_ID),--id "$(RULE_ID)") \
-	  $(if $(DESC),--description "$(DESC)") \
+	  $(if $(RULE_DESC),--description "$(RULE_DESC)") \
 	  $(if $(RULE_TYPE),--type "$(RULE_TYPE)") \
-	  $(if $(IFACE),--interface "$(IFACE)") \
-	  $(if $(SOURCE),--source "$(SOURCE)") \
-	  $(if $(DEST),--destination "$(DEST)") \
-	  $(if $(PROTO),--protocol "$(PROTO)") \
-	  $(if $(GW),--gateway "$(GW)") \
+	  $(if $(RULE_IFACE),--interface "$(RULE_IFACE)") \
+	  $(if $(RULE_SRC),--source "$(RULE_SRC)") \
+	  $(if $(RULE_DEST),--destination "$(RULE_DEST)") \
+	  $(if $(RULE_PROTO),--protocol "$(RULE_PROTO)") \
+	  $(if $(RULE_GW),--gateway "$(RULE_GW)") \
 	  $(if $(ENABLE),--enable) \
 	  $(if $(DISABLE),--disable)
 
