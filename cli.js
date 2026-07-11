@@ -1,10 +1,11 @@
 #!/usr/bin/env node
 
 const { Command } = require('commander');
-const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias } = require('./lib/dns');
+const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
 const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
-const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias } = require('./lib/firewall');
+const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
+        listRules, addRule, deleteRule, updateRule } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const fs = require('fs');
 const path = require('path');
@@ -145,7 +146,7 @@ program
   .requiredOption('-A, --alias-domain <alias-domain>', 'Alias domain to delete')
   .action(async (options) => {
     try {
-      await deleteAlias({
+      await deleteDnsAlias({
         host: options.host,
         domain: options.domain,
         aliasHost: options.aliasHost,
@@ -406,6 +407,115 @@ program
       await listNordVPNServers({
         countryId: parseInt(options.countryId, 10),
         limit:     parseInt(options.limit, 10),
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Firewall rule commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('fw-rule:list')
+  .description('List pfSense firewall rules')
+  .option('-f, --filter <text>',     'Filter by description (case-insensitive substring)')
+  .option('-i, --interface <iface>', 'Filter by interface (e.g. lan, wan, opt1)')
+  .option('-t, --type <type>',       'Filter by type: pass | block | reject')
+  .action(async (options) => {
+    try {
+      await listRules({ filter: options.filter, iface: options.interface, type: options.type });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-rule:add')
+  .description('Add a pfSense firewall rule')
+  .requiredOption('-t, --type <type>',           'Rule type: pass | block | reject')
+  .requiredOption('-i, --interface <iface>',      'Interface (e.g. lan, wan)')
+  .option('-s, --source <src>',                  'Source IP, CIDR, alias, or "any"', 'any')
+  .option('--source-port <port>',                'Source port or range')
+  .option('-d, --destination <dst>',             'Destination IP, CIDR, alias, or "any"', 'any')
+  .option('--dest-port <port>',                  'Destination port or range')
+  .option('-p, --protocol <proto>',              'Protocol: tcp | udp | tcp/udp | icmp | any')
+  .option('--ip-version <ver>',                  'IP version: inet | inet6 | inet46', 'inet')
+  .option('-g, --gateway <name>',                'Gateway or gateway group name (for policy routing)')
+  .option('--tag <tag>',                         'Packet tag to set')
+  .option('-D, --description <text>',            'Rule description')
+  .option('--log',                               'Enable rule logging')
+  .option('--disabled',                          'Create rule in disabled state')
+  .option('--floating',                          'Create as a floating rule')
+  .action(async (options) => {
+    try {
+      await addRule({
+        type:        options.type,
+        iface:       options.interface,
+        source:      options.source,
+        sourcePort:  options.sourcePort,
+        destination: options.destination,
+        destPort:    options.destPort,
+        protocol:    options.protocol,
+        ipprotocol:  options.ipVersion,
+        gateway:     options.gateway,
+        tag:         options.tag,
+        description: options.description || '',
+        log:         !!options.log,
+        disabled:    !!options.disabled,
+        floating:    !!options.floating,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-rule:delete')
+  .description('Delete a pfSense firewall rule by id or description')
+  .option('-i, --id <id>',             'Rule id (from fw-rule:list)')
+  .option('-D, --description <text>',  'Exact rule description (used if --id not given)')
+  .action(async (options) => {
+    try {
+      await deleteRule({ id: options.id, description: options.description });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('fw-rule:update')
+  .description('Update fields on an existing pfSense firewall rule')
+  .option('-i, --id <id>',             'Rule id (from fw-rule:list)')
+  .option('-D, --description <text>',  'Exact rule description to look up (if --id not given)')
+  .option('-t, --type <type>',         'New type: pass | block | reject')
+  .option('--interface <iface>',       'New interface')
+  .option('-s, --source <src>',        'New source')
+  .option('-d, --destination <dst>',   'New destination')
+  .option('-p, --protocol <proto>',    'New protocol')
+  .option('-g, --gateway <name>',      'New gateway')
+  .option('--enable',                  'Enable the rule (sets disabled=false)')
+  .option('--disable',                 'Disable the rule (sets disabled=true)')
+  .option('--descr <text>',            'New description')
+  .action(async (options) => {
+    try {
+      const disabled = options.disable ? true : options.enable ? false : undefined;
+      await updateRule({
+        id:          options.id,
+        description: options.description,
+        type:        options.type,
+        iface:       options.interface,
+        source:      options.source,
+        destination: options.destination,
+        protocol:    options.protocol,
+        gateway:     options.gateway,
+        disabled,
+        descr:       options.descr,
       });
     } catch (error) {
       console.error('Error:', error.message);

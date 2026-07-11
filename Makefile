@@ -1,4 +1,4 @@
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete
 
 .DEFAULT_GOAL := help
 
@@ -281,13 +281,84 @@ nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([TUN
 	  $(if $(GW),--gateway-name "$(GW)") \
 	  $(if $(DELETE_TUNNEL),--delete-tunnel)
 
-##@ Firewall Aliases
+##@ Firewall Rules
 
-# Alias name for kill-switch hosts vars
+# Shared vars (also used by alias targets below)
 NAME   ?=
 HOST   ?=
 DETAIL ?=
 TYPE   ?= host
+
+# Rule-specific vars
+RULE_ID    ?=
+RULE_TYPE  ?=
+IFACE      ?=
+SOURCE     ?= any
+SOURCE_PORT ?=
+DEST       ?= any
+DEST_PORT  ?=
+PROTO      ?=
+IP_VER     ?= inet
+GW         ?=
+TAG        ?=
+DESC       ?=
+
+fw-rule-list: ## List firewall rules ([FILTER=] [IFACE=] [TYPE=pass|block])
+	@node cli.js fw-rule:list \
+	  $(if $(FILTER),--filter "$(FILTER)") \
+	  $(if $(IFACE),--interface "$(IFACE)") \
+	  $(if $(TYPE),--type "$(TYPE)")
+
+fw-rule-add: ## Add a firewall rule (RULE_TYPE= IFACE= [SOURCE=any] [DEST=any] [PROTO=] [GW=] [DESC=] [TAG=] [SOURCE_PORT=] [DEST_PORT=])
+	@if [ -z "$(RULE_TYPE)" ] || [ -z "$(IFACE)" ]; then \
+		echo "Error: RULE_TYPE and IFACE are required"; \
+		echo "Usage: make fw-rule-add RULE_TYPE=pass IFACE=lan SOURCE=MyAlias DEST=any GW=NordVPN_WG_GWGrp DESC='My rule'"; \
+		exit 1; \
+	fi
+	@node cli.js fw-rule:add \
+	  --type "$(RULE_TYPE)" \
+	  --interface "$(IFACE)" \
+	  --source "$(SOURCE)" \
+	  --destination "$(DEST)" \
+	  --ip-version "$(IP_VER)" \
+	  $(if $(SOURCE_PORT),--source-port "$(SOURCE_PORT)") \
+	  $(if $(DEST_PORT),--dest-port "$(DEST_PORT)") \
+	  $(if $(PROTO),--protocol "$(PROTO)") \
+	  $(if $(GW),--gateway "$(GW)") \
+	  $(if $(TAG),--tag "$(TAG)") \
+	  $(if $(DESC),--description "$(DESC)")
+
+fw-rule-delete: ## Delete a firewall rule (RULE_ID= or DESC=)
+	@if [ -z "$(RULE_ID)" ] && [ -z "$(DESC)" ]; then \
+		echo "Error: RULE_ID or DESC is required"; \
+		echo "Usage: make fw-rule-delete RULE_ID=15"; \
+		echo "       make fw-rule-delete DESC='my rule description'"; \
+		exit 1; \
+	fi
+	@node cli.js fw-rule:delete \
+	  $(if $(RULE_ID),--id "$(RULE_ID)") \
+	  $(if $(DESC),--description "$(DESC)")
+
+fw-rule-update: ## Update a firewall rule (RULE_ID= or DESC=, then any of: RULE_TYPE= IFACE= SOURCE= DEST= PROTO= GW= ENABLE=1 DISABLE=1)
+	@if [ -z "$(RULE_ID)" ] && [ -z "$(DESC)" ]; then \
+		echo "Error: RULE_ID or DESC is required"; \
+		exit 1; \
+	fi
+	@node cli.js fw-rule:update \
+	  $(if $(RULE_ID),--id "$(RULE_ID)") \
+	  $(if $(DESC),--description "$(DESC)") \
+	  $(if $(RULE_TYPE),--type "$(RULE_TYPE)") \
+	  $(if $(IFACE),--interface "$(IFACE)") \
+	  $(if $(SOURCE),--source "$(SOURCE)") \
+	  $(if $(DEST),--destination "$(DEST)") \
+	  $(if $(PROTO),--protocol "$(PROTO)") \
+	  $(if $(GW),--gateway "$(GW)") \
+	  $(if $(ENABLE),--enable) \
+	  $(if $(DISABLE),--disable)
+
+##@ Firewall Aliases
+
+# Alias name for kill-switch hosts vars
 
 fw-alias-list: ## List pfSense firewall aliases ([FILTER=])
 	@node cli.js fw-alias:list $(if $(FILTER),--filter "$(FILTER)")
