@@ -31,6 +31,8 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **Firewall Alias Management** - Create/update pfSense host aliases; add or remove IPs without touching firewall rules  
 ✓ **Firewall Rule Management** - List, add, delete, and update pfSense firewall rules  
 ✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support  
+✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, and renew  
+✓ **Configuration History** - List and prune pfSense config history revisions  
 ✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
 ✓ Self-signed certificate support  
@@ -630,6 +632,58 @@ docker-compose run --rm pfsense-cli haproxy:route-add \
   --backend myapp
 ```
 
+### Certificate Management
+
+Manage SSL certificates stored in the pfSense certificate manager. Certificates listed here can be assigned to HAProxy frontends.
+
+```bash
+# List all certificates with expiry info
+make cert-list
+
+# Filter by name
+make cert-list FILTER=mysite
+
+# Show only certificates expiring within 30 days
+make cert-list EXPIRING=30
+
+# Import a cert+key from PEM files
+make cert-import CERT_NAME=mysite CERT_FILE=mysite.crt KEY_FILE=mysite.key
+
+# Import as a user (client) certificate
+make cert-import CERT_NAME=client-cert CERT_FILE=client.crt KEY_FILE=client.key CERT_TYPE=user
+
+# Delete a certificate by name
+make cert-delete CERT_NAME=mysite
+
+# Delete by refid (from cert-list output)
+make cert-delete CERT_REFID=6789abc123
+
+# Renew an internally-generated certificate
+make cert-renew CERT_NAME=mysite
+```
+
+> **Let's Encrypt**: Obtain the certificate using any ACME client (certbot, acme.sh, etc.) on a host that can fulfill the challenge, then import the resulting `fullchain.pem` and `privkey.pem` with `cert-import`. The pfSense ACME package is not exposed via the REST API.
+
+> **Cert in use**: pfSense returns HTTP 403 if you try to delete a certificate that is referenced by a service (e.g. an active HAProxy frontend). Remove the reference in the GUI or via the API first.
+
+### Configuration History
+
+pfSense automatically records a config history entry each time a change is applied. These entries can be listed and pruned through the API. Downloading or restoring a config revision is not exposed by the pfSense REST API v2 — use the GUI (`Diagnostics > Backup & Restore`) or SCP the file directly from `/cf/conf/backup/`.
+
+```bash
+# List all config history revisions, newest first
+make config-history
+
+# Show only the 10 most recent
+make config-history LIMIT=10
+
+# Delete revisions older than 30 days
+make config-history-prune OLDER_THAN=30
+
+# Keep only the 20 most recent revisions, delete the rest
+make config-history-prune KEEP_LAST=20
+```
+
 ## Architecture
 
 ### DNS Strategy
@@ -748,6 +802,12 @@ make fw-rule-add             # Add a firewall rule (RULE_TYPE= RULE_IFACE= RULE_
 make fw-rule-delete          # Delete a firewall rule (RULE_ID= or RULE_DESC=)
 make fw-rule-update          # Update a firewall rule field (RULE_ID= or RULE_DESC=, ENABLE=1 DISABLE=1)
 make bulk-import             # Bulk import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RUN=1])
+make cert-list               # List certificates with expiry info (FILTER= EXPIRING=<days>)
+make cert-import             # Import cert+key PEM files (CERT_NAME= CERT_FILE= KEY_FILE= [CERT_TYPE=])
+make cert-delete             # Delete a certificate (CERT_NAME= or CERT_REFID=)
+make cert-renew              # Renew an internally-generated certificate (CERT_NAME= or CERT_REFID=)
+make config-history          # List config history revisions ([LIMIT=N])
+make config-history-prune    # Prune old config revisions (OLDER_THAN=<days> or KEEP_LAST=<n>)
 make clean              # Clean up Docker resources
 ```
 
@@ -861,6 +921,9 @@ docker-compose build
   - `/api/v2/firewall/rule` — firewall rule CRUD
   - `/api/v2/firewall/alias` — firewall alias CRUD
   - `/api/v2/firewall/apply`, `/api/v2/routing/apply`, etc. — apply changes
+  - `/api/v2/system/certificate` — certificate CRUD (import, delete, renew)
+  - `/api/v2/system/certificates` — list all certificates
+  - `/api/v2/diagnostics/config_history/revisions` — list/delete config history
 
 **API limitations** (not exposed by pfSense REST API v2 on pfSense 2.7.x):
 - Gateway groups — configure in GUI: `System > Routing > Gateway Groups`

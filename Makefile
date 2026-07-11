@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import cert-list cert-import cert-delete cert-renew config-history config-history-prune
 
 .DEFAULT_GOAL := help
 
@@ -253,6 +253,13 @@ COUNTRY_ID    ?= 228
 DRY_RUN       ?=
 DELETE_TUNNEL ?=
 BULK_FILE     ?=
+CERT_NAME     ?=
+CERT_FILE     ?=
+KEY_FILE      ?=
+CERT_TYPE     ?= server
+CERT_REFID    ?=
+KEEP_LAST     ?=
+OLDER_THAN    ?=
 
 nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228])
 	@node cli.js nordvpn:servers --country-id "$(COUNTRY_ID)"
@@ -410,6 +417,62 @@ bulk-import: ## Import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RU
 		exit 1; \
 	fi
 	@node cli.js bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
+
+##@ Certificates
+
+cert-list: ## List certificates with expiry info ([FILTER=] [EXPIRING=<days>])
+	@node cli.js cert:list \
+	  $(if $(FILTER),--filter "$(FILTER)") \
+	  $(if $(EXPIRING),--expiring "$(EXPIRING)")
+
+cert-import: ## Import a cert+key pair (CERT_NAME= CERT_FILE= KEY_FILE= [CERT_TYPE=server|user])
+	@if [ -z "$(CERT_NAME)" ] || [ -z "$(CERT_FILE)" ] || [ -z "$(KEY_FILE)" ]; then \
+		echo "Error: CERT_NAME, CERT_FILE, and KEY_FILE are required"; \
+		echo "Usage: make cert-import CERT_NAME=mysite CERT_FILE=mysite.crt KEY_FILE=mysite.key"; \
+		exit 1; \
+	fi
+	@node cli.js cert:import \
+	  --name "$(CERT_NAME)" \
+	  --cert "$(CERT_FILE)" \
+	  --key  "$(KEY_FILE)" \
+	  --type "$(CERT_TYPE)"
+
+cert-delete: ## Delete a certificate (CERT_NAME= or CERT_REFID=)
+	@if [ -z "$(CERT_NAME)" ] && [ -z "$(CERT_REFID)" ]; then \
+		echo "Error: CERT_NAME or CERT_REFID is required"; \
+		echo "Usage: make cert-delete CERT_NAME=mysite"; \
+		echo "       make cert-delete CERT_REFID=6789abc123"; \
+		exit 1; \
+	fi
+	@node cli.js cert:delete \
+	  $(if $(CERT_NAME),--name "$(CERT_NAME)") \
+	  $(if $(CERT_REFID),--refid "$(CERT_REFID)")
+
+cert-renew: ## Renew an internally-generated certificate (CERT_NAME= or CERT_REFID=)
+	@if [ -z "$(CERT_NAME)" ] && [ -z "$(CERT_REFID)" ]; then \
+		echo "Error: CERT_NAME or CERT_REFID is required"; \
+		echo "Usage: make cert-renew CERT_NAME=mysite"; \
+		exit 1; \
+	fi
+	@node cli.js cert:renew \
+	  $(if $(CERT_NAME),--name "$(CERT_NAME)") \
+	  $(if $(CERT_REFID),--refid "$(CERT_REFID)")
+
+##@ Configuration History
+
+config-history: ## List pfSense config history revisions ([LIMIT=N])
+	@node cli.js config:history $(if $(LIMIT),--limit "$(LIMIT)")
+
+config-history-prune: ## Prune old config history revisions (OLDER_THAN=<days> or KEEP_LAST=<n>)
+	@if [ -z "$(OLDER_THAN)" ] && [ -z "$(KEEP_LAST)" ]; then \
+		echo "Error: OLDER_THAN or KEEP_LAST is required"; \
+		echo "Usage: make config-history-prune OLDER_THAN=30   # delete revisions older than 30 days"; \
+		echo "       make config-history-prune KEEP_LAST=20    # keep 20 most recent, delete rest"; \
+		exit 1; \
+	fi
+	@node cli.js config:history-prune \
+	  $(if $(OLDER_THAN),--older-than "$(OLDER_THAN)") \
+	  $(if $(KEEP_LAST),--keep-last "$(KEEP_LAST)")
 
 ##@ Infrastructure
 

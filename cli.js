@@ -8,6 +8,8 @@ const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteA
         listRules, addRule, deleteRule, updateRule } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const { bulkImport } = require('./lib/bulk');
+const { listCerts, importCert, deleteCert, renewCert } = require('./lib/cert');
+const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -598,6 +600,110 @@ program
   .action(async (options) => {
     try {
       await deleteAlias({ name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Certificate commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('cert:list')
+  .description('List pfSense certificates with expiry information')
+  .option('-f, --filter <text>',     'Filter by certificate name')
+  .option('-e, --expiring <days>',   'Show only certificates expiring within N days')
+  .action(async (options) => {
+    try {
+      await listCerts({
+        filter:      options.filter,
+        expiringDays: options.expiring != null ? parseInt(options.expiring, 10) : undefined,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('cert:import')
+  .description('Import a certificate and private key into pfSense')
+  .requiredOption('-n, --name <name>', 'Certificate name (description in pfSense)')
+  .requiredOption('-c, --cert <file>', 'Path to PEM certificate file')
+  .requiredOption('-k, --key <file>',  'Path to PEM private key file')
+  .option('-t, --type <type>',         'Certificate type: server | user', 'server')
+  .action(async (options) => {
+    try {
+      await importCert({
+        name:     options.name,
+        certFile: options.cert,
+        keyFile:  options.key,
+        type:     options.type,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('cert:delete')
+  .description('Delete a certificate from pfSense')
+  .option('-n, --name <name>',   'Certificate name (exact match)')
+  .option('-r, --refid <refid>', 'Certificate refid (from cert:list)')
+  .action(async (options) => {
+    try {
+      await deleteCert({ name: options.name, refid: options.refid });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('cert:renew')
+  .description('Renew a certificate in pfSense (internally-generated certs only)')
+  .option('-n, --name <name>',   'Certificate name (exact match)')
+  .option('-r, --refid <refid>', 'Certificate refid (from cert:list)')
+  .action(async (options) => {
+    try {
+      await renewCert({ name: options.name, refid: options.refid });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Config history commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('config:history')
+  .description('List pfSense configuration history revisions')
+  .option('-n, --limit <n>', 'Show only the N most recent revisions')
+  .action(async (options) => {
+    try {
+      await listConfigHistory({ limit: options.limit ? parseInt(options.limit, 10) : undefined });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('config:history-prune')
+  .description('Delete old pfSense config history revisions')
+  .option('--older-than <days>', 'Delete revisions older than N days')
+  .option('--keep-last <n>',     'Keep only the N most recent revisions, delete the rest')
+  .action(async (options) => {
+    try {
+      await pruneConfigHistory({
+        olderThanDays: options.olderThan  ? parseInt(options.olderThan, 10)  : undefined,
+        keepLast:      options.keepLast   ? parseInt(options.keepLast, 10)   : undefined,
+      });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
