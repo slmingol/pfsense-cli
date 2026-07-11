@@ -29,6 +29,8 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **WireGuard VPN Provisioning** - Zero-touch setup from a `.conf` file: tunnel, peer, interface, gateway, NAT, kill-switch firewall rules  
 ✓ **NordVPN WireGuard** - Fetch credentials from API, list/rotate servers, teardown  
 ✓ **Firewall Alias Management** - Create/update pfSense host aliases; add or remove IPs without touching firewall rules  
+✓ **Firewall Rule Management** - List, add, delete, and update pfSense firewall rules  
+✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support  
 ✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
 ✓ Self-signed certificate support  
@@ -433,6 +435,100 @@ The `RouteThroughNordVPN_WG` alias is referenced by two firewall rules in `Firew
 
 The pass rule must sit above the general VPN routing rule; the block rule must immediately follow. Both are created automatically by `wg-provision KS_ALIAS=...`.
 
+### Bulk Operations
+
+Import multiple services, DNS entries, or HAProxy backends in a single command from a JSON or CSV file. Validation runs before any API calls are made — if any record fails validation, nothing is applied.
+
+#### Dry run (preview without applying)
+
+```bash
+make bulk-import BULK_FILE=examples/bulk-services.json DRY_RUN=1
+make bulk-import BULK_FILE=examples/bulk-services.csv  DRY_RUN=1
+```
+
+#### Apply
+
+```bash
+make bulk-import BULK_FILE=examples/bulk-services.json
+```
+
+#### JSON format
+
+Three top-level keys are supported. You can mix them in one file:
+
+```json
+{
+  "services": [
+    {
+      "alias": "grafana",
+      "port": "3000",
+      "description": "Grafana — metrics dashboard",
+      "ssl": false
+    }
+  ],
+  "dns": [
+    {
+      "host": "nas01",
+      "domain": "bub.lan",
+      "ip": "192.168.7.20",
+      "description": "TrueNAS primary"
+    }
+  ],
+  "haproxy": [
+    {
+      "name": "myapp",
+      "server": "myapp.bub.lan",
+      "port": "8080",
+      "ssl": false
+    }
+  ]
+}
+```
+
+A bare JSON array is treated as `services`.
+
+#### CSV format
+
+The record type is inferred from the header columns:
+
+| Header columns | Record type |
+|----------------|-------------|
+| `alias`, `port`, `description` | services |
+| `host`, `domain`, `ip` | dns |
+| `name`, `server`, `port` | haproxy |
+
+**Services CSV** (also accepts `ssl`, `host_bub`, `host_lamolabs` columns):
+
+```csv
+alias,port,description,ssl
+uptime-kuma,3001,Uptime Kuma — status monitoring,false
+vaultwarden,8080,Vaultwarden — password manager,false
+```
+
+**DNS CSV**:
+
+```csv
+host,domain,ip,description
+nas01,bub.lan,192.168.7.20,TrueNAS primary
+```
+
+Comments (lines starting with `#`) are stripped.
+
+#### Service record fields
+
+A `services` record creates four resources per entry (same as `make add-service`):
+
+| Field | Required | Default | Description |
+|-------|----------|---------|-------------|
+| `alias` | yes | | Service name / hostname prefix |
+| `port` | yes | | Backend port number |
+| `description` | yes | | Human-readable label |
+| `ssl` | no | `false` | Whether the backend speaks HTTPS |
+| `host_bub` | no | `docker-host-01-svcs` | Backend DNS host |
+| `host_lamolabs` | no | `lamolabs-svcs` | Frontend DNS host |
+
+See `examples/` for ready-to-use sample files.
+
 ### Alternative: Gluetun (Docker-based VPN client)
 
 [Gluetun](https://github.com/qdm12/gluetun) is a Docker container that manages VPN connections directly, with native support for ProtonVPN, NordVPN, Mullvad, and many others. It is an alternative to configuring WireGuard inside pfSense.
@@ -647,6 +743,11 @@ make fw-alias-create         # Create or update a host alias (NAME= HOST= DESC=)
 make fw-alias-add-host       # Add a host/IP to an alias (NAME= HOST= DETAIL=)
 make fw-alias-remove-host    # Remove a host/IP from an alias (NAME= HOST=)
 make fw-alias-delete         # Delete an alias (NAME=)
+make fw-rule-list            # List firewall rules (FILTER= RULE_IFACE= RULE_TYPE=)
+make fw-rule-add             # Add a firewall rule (RULE_TYPE= RULE_IFACE= RULE_SRC= RULE_DEST= RULE_GW= ...)
+make fw-rule-delete          # Delete a firewall rule (RULE_ID= or RULE_DESC=)
+make fw-rule-update          # Update a firewall rule field (RULE_ID= or RULE_DESC=, ENABLE=1 DISABLE=1)
+make bulk-import             # Bulk import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RUN=1])
 make clean              # Clean up Docker resources
 ```
 

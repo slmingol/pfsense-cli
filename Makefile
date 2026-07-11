@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import
 
 .DEFAULT_GOAL := help
 
@@ -252,6 +252,7 @@ NORDVPN_TOKEN ?=
 COUNTRY_ID    ?= 228
 DRY_RUN       ?=
 DELETE_TUNNEL ?=
+BULK_FILE     ?=
 
 nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228])
 	@node cli.js nordvpn:servers --country-id "$(COUNTRY_ID)"
@@ -398,6 +399,17 @@ fw-alias-delete: ## Delete a firewall alias (NAME=)
 		exit 1; \
 	fi
 	@node cli.js fw-alias:delete --name "$(NAME)"
+
+##@ Bulk Operations
+
+bulk-import: ## Import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RUN=1])
+	@if [ -z "$(BULK_FILE)" ]; then \
+		echo "Error: BULK_FILE is required"; \
+		echo "Usage: make bulk-import BULK_FILE=services.json"; \
+		echo "       make bulk-import BULK_FILE=services.json DRY_RUN=1"; \
+		exit 1; \
+	fi
+	@node cli.js bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
 
 ##@ Infrastructure
 

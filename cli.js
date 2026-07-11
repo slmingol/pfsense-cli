@@ -7,6 +7,7 @@ const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wiregu
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
+const { bulkImport } = require('./lib/bulk');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -597,6 +598,23 @@ program
   .action(async (options) => {
     try {
       await deleteAlias({ name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Bulk import command
+// ---------------------------------------------------------------------------
+
+program
+  .command('bulk:import <file>')
+  .description('Bulk import services, DNS entries, or HAProxy backends from a JSON or CSV file')
+  .option('--dry-run', 'Preview what would be created without applying any changes')
+  .action(async (file, options) => {
+    try {
+      await bulkImport({ file, dryRun: !!options.dryRun });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
