@@ -264,22 +264,12 @@ OLDER_THAN    ?=
 nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228])
 	@node cli.js nordvpn:servers --country-id "$(COUNTRY_ID)"
 
-nordvpn-creds: ## Fetch NordVPN nordlynx_private_key and VPN credentials (NORDVPN_TOKEN=)
-	@if [ -z "$(NORDVPN_TOKEN)" ]; then \
-		echo "Error: NORDVPN_TOKEN is required"; \
-		echo "Usage: make nordvpn-creds NORDVPN_TOKEN=<access_token>"; \
-		exit 1; \
-	fi
-	@NORDVPN_TOKEN="$(NORDVPN_TOKEN)" node cli.js nordvpn:creds --token "$(NORDVPN_TOKEN)"
+nordvpn-creds: ## Fetch NordVPN nordlynx_private_key and VPN credentials ([NORDVPN_TOKEN=] falls back to .env)
+	@node cli.js nordvpn:creds $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)")
 
-nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server (NORDVPN_TOKEN= [COUNTRY_ID=228] [TUNNEL=NordVPNWG01] [DRY_RUN=1])
-	@if [ -z "$(NORDVPN_TOKEN)" ]; then \
-		echo "Error: NORDVPN_TOKEN is required"; \
-		echo "Usage: make nordvpn-rotate-wg NORDVPN_TOKEN=<access_token>"; \
-		exit 1; \
-	fi
+nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([NORDVPN_TOKEN=] [COUNTRY_ID=228] [TUNNEL=NordVPNWG01] [DRY_RUN=1])
 	@node cli.js nordvpn:rotate-wg \
-	  --token "$(NORDVPN_TOKEN)" \
+	  $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)") \
 	  --country-id "$(COUNTRY_ID)" \
 	  $(if $(TUNNEL),--tunnel "$(TUNNEL)") \
 	  $(if $(DRY_RUN),--dry-run)
