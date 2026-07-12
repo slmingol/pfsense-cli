@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import bulk-export cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard
 
 .DEFAULT_GOAL := help
 
@@ -414,6 +414,12 @@ bulk-import: ## Import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RU
 	fi
 	@node cli.js bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
 
+OUT           ?= snapshot.json
+
+bulk-export: ## Export DNS + HAProxy config to JSON ([OUT=snapshot.json])
+	@node cli.js bulk:export --output "$(OUT)"
+	@echo "Re-import with: make bulk-import BULK_FILE=$(OUT)"
+
 ##@ DHCP
 
 dhcp-list: ## List DHCP static mappings ([IFACE=lan] [FILTER=])
@@ -528,6 +534,23 @@ config-history-prune: ## Prune old config history revisions (OLDER_THAN=<days> o
 	@node cli.js config:history-prune \
 	  $(if $(OLDER_THAN),--older-than "$(OLDER_THAN)") \
 	  $(if $(KEEP_LAST),--keep-last "$(KEEP_LAST)")
+
+PRUNE_SCHEDULE ?= 0 3 * * *
+PRUNE_LOG      ?= /tmp/pfsense-config-prune.log
+
+config-history-schedule: ## Install a daily cron to auto-prune config history (KEEP_LAST=20 [OLDER_THAN=] [PRUNE_SCHEDULE="0 3 * * *"])
+	@JOB="$(PRUNE_SCHEDULE) cd $(CURDIR) && KEEP_LAST=$(KEEP_LAST) OLDER_THAN=$(OLDER_THAN) LOG_FILE=$(PRUNE_LOG) sh scripts/prune-config-history.sh"; \
+	( crontab -l 2>/dev/null | grep -v 'prune-config-history'; echo "$$JOB" ) | crontab -
+	@echo "Installed cron: $(PRUNE_SCHEDULE)"
+	@echo "Logs: $(PRUNE_LOG)"
+	@echo "Run 'make config-history-cron-status' to verify"
+
+config-history-unschedule: ## Remove the config history prune cron job
+	@crontab -l 2>/dev/null | grep -v 'prune-config-history' | crontab - || true
+	@echo "Removed config history prune cron job"
+
+config-history-cron-status: ## Show current config history prune cron job (if any)
+	@crontab -l 2>/dev/null | grep 'prune-config-history' || echo "(no config history prune cron installed)"
 
 ##@ Infrastructure
 

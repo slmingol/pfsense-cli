@@ -7,7 +7,7 @@ const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wiregu
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
-const { bulkImport } = require('./lib/bulk');
+const { bulkImport, bulkExport } = require('./lib/bulk');
 const { listCerts, importCert, deleteCert, renewCert, checkCerts } = require('./lib/cert');
 const { listStaticMappings, addStaticMapping, updateStaticMapping, deleteStaticMapping } = require('./lib/dhcp');
 const { showOptics } = require('./lib/optics');
@@ -839,6 +839,19 @@ program
   .action(async (file, options) => {
     try {
       await bulkImport({ file, dryRun: !!options.dryRun });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('bulk:export')
+  .description('Export current DNS entries and HAProxy backends to JSON (bulk:import compatible)')
+  .option('-o, --output <file>', 'Write output to file instead of stdout')
+  .action(async (options) => {
+    try {
+      await bulkExport({ output: options.output });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

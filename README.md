@@ -30,11 +30,11 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **NordVPN WireGuard** - Fetch credentials from API, list/rotate servers, teardown  
 ✓ **Firewall Alias Management** - Create/update pfSense host aliases; add or remove IPs without touching firewall rules  
 ✓ **Firewall Rule Management** - List, add, delete, and update pfSense firewall rules  
-✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support  
+✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support; export current config as a reimportable JSON snapshot  
 ✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, renew, and check expiry (Nagios-compatible exit codes)  
 ✓ **Wildcard Cert Renewal** - Renew Let's Encrypt wildcard certs via acme.sh DNS-01 challenge and import into pfSense in one step  
 ✓ **DHCP Static Mappings** - List, add, update, and delete DHCP static host-to-IP assignments across all interfaces  
-✓ **Configuration History** - List and prune pfSense config history revisions  
+✓ **Configuration History** - List and prune pfSense config history revisions; install a scheduled cron job for automatic pruning  
 ✓ **SFP+ Optics Diagnostics** - Read transceiver DDM data (TX/RX power, temperature, voltage) for SFP+ interfaces  
 ✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
@@ -442,7 +442,23 @@ The pass rule must sit above the general VPN routing rule; the block rule must i
 
 ### Bulk Operations
 
-Import multiple services, DNS entries, or HAProxy backends in a single command from a JSON or CSV file. Validation runs before any API calls are made — if any record fails validation, nothing is applied.
+Import and export DNS entries and HAProxy configuration in a single command. Import validates all records before applying. Export produces a JSON snapshot compatible with bulk:import.
+
+#### Export
+
+```bash
+# Export current DNS + HAProxy config to JSON (stdout)
+make bulk-export
+
+# Write to a file
+make bulk-export OUT=snapshot.json
+
+# Re-import later
+make bulk-import BULK_FILE=snapshot.json DRY_RUN=1   # preview
+make bulk-import BULK_FILE=snapshot.json              # apply
+```
+
+The export includes `dns`, `haproxy`, and `frontends` keys. The `frontends` key is metadata-only (not yet consumable by bulk:import) but useful for snapshots.
 
 #### Dry run (preview without applying)
 
@@ -748,6 +764,29 @@ make config-history-prune OLDER_THAN=30
 # Keep only the 20 most recent revisions, delete the rest
 make config-history-prune KEEP_LAST=20
 ```
+
+#### Scheduled auto-pruning
+
+Install a cron job on the local machine to prune config history on a schedule:
+
+```bash
+# Install: daily at 3am, keep last 20 revisions (default schedule)
+make config-history-schedule KEEP_LAST=20
+
+# Custom schedule and retention
+make config-history-schedule KEEP_LAST=30 PRUNE_SCHEDULE="0 2 * * 0"   # Sundays at 2am
+
+# Combine both policies
+make config-history-schedule KEEP_LAST=20 OLDER_THAN=60
+
+# Show installed cron job
+make config-history-cron-status
+
+# Remove the cron job
+make config-history-unschedule
+```
+
+Prune output is appended to `/tmp/pfsense-config-prune.log` by default (override with `LOG_FILE=`). The script sources `.env` automatically, so no credential setup is needed beyond the existing `.env` file.
 
 ### SFP+ Optics Diagnostics
 
