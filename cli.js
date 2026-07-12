@@ -9,6 +9,7 @@ const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteA
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const { bulkImport } = require('./lib/bulk');
 const { listCerts, importCert, deleteCert, renewCert } = require('./lib/cert');
+const { showOptics } = require('./lib/optics');
 const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
 const fs = require('fs');
 const path = require('path');
@@ -600,6 +601,23 @@ program
   .action(async (options) => {
     try {
       await deleteAlias({ name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Optics command
+// ---------------------------------------------------------------------------
+
+program
+  .command('optics:show')
+  .description('Show SFP+ transceiver diagnostics (DDM) for one or all SFP+ interfaces')
+  .option('-i, --interface <iface>', 'Interface name (e.g. igb0, ix0, ixl0); auto-detects SFP+ if omitted')
+  .action(async (options) => {
+    try {
+      await showOptics({ iface: options.interface });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

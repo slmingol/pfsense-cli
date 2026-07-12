@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import cert-list cert-import cert-delete cert-renew config-history config-history-prune
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import cert-list cert-import cert-delete cert-renew config-history config-history-prune optics-show
 
 .DEFAULT_GOAL := help
 
@@ -407,6 +407,11 @@ bulk-import: ## Import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RU
 		exit 1; \
 	fi
 	@node cli.js bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
+
+##@ Diagnostics
+
+optics-show: ## Show SFP+ transceiver DDM diagnostics ([IFACE=igb0])
+	@node cli.js optics:show $(if $(IFACE),--interface "$(IFACE)")
 
 ##@ Certificates
 
