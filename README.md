@@ -33,6 +33,7 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support  
 ✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, and renew  
 ✓ **Configuration History** - List and prune pfSense config history revisions  
+✓ **SFP+ Optics Diagnostics** - Read transceiver DDM data (TX/RX power, temperature, voltage) for SFP+ interfaces  
 ✓ Idempotent - safe to re-run; all commands check before creating  
 ✓ Automatic configuration application  
 ✓ Self-signed certificate support  
@@ -684,6 +685,31 @@ make config-history-prune OLDER_THAN=30
 make config-history-prune KEEP_LAST=20
 ```
 
+### SFP+ Optics Diagnostics
+
+Read transceiver DDM (Digital Diagnostic Monitoring) data from SFP+ interfaces via the pfSense diagnostics API. Useful for verifying signal levels and module health without SSH.
+
+```bash
+# Auto-detect SFP+ interfaces and show all
+make optics-show
+
+# Show a specific interface
+make optics-show IFACE=ix0
+```
+
+Output includes module type, vendor/PN/SN, TX/RX power (dBm), temperature, voltage, and bias current. RX/TX power is color-coded:
+
+| Color | Range | Meaning |
+|-------|-------|---------|
+| Green | > -10 dBm | Good signal |
+| Yellow | -10 to -25 dBm | Marginal |
+| Red | < -25 dBm | Weak |
+| Red (no signal) | -40 dBm | No fiber connected |
+
+> **Driver support**: Tested with the `ix` driver (Intel X550/X540 10G). Other SFP+ drivers (`ixl`, `cxgbe`, `sfxge`) are auto-detected by prefix. Output format varies by driver — if DDM parsing fails, raw optics-related lines are shown instead.
+
+> **Requirement**: `diagnostics/command_prompt` must be enabled in pfSense API settings (`System > API`).
+
 ## Architecture
 
 ### DNS Strategy
@@ -808,6 +834,7 @@ make cert-delete             # Delete a certificate (CERT_NAME= or CERT_REFID=)
 make cert-renew              # Renew an internally-generated certificate (CERT_NAME= or CERT_REFID=)
 make config-history          # List config history revisions ([LIMIT=N])
 make config-history-prune    # Prune old config revisions (OLDER_THAN=<days> or KEEP_LAST=<n>)
+make optics-show             # Show SFP+ transceiver DDM diagnostics ([IFACE=ix0])
 make clean              # Clean up Docker resources
 ```
 
@@ -924,6 +951,7 @@ docker-compose build
   - `/api/v2/system/certificate` — certificate CRUD (import, delete, renew)
   - `/api/v2/system/certificates` — list all certificates
   - `/api/v2/diagnostics/config_history/revisions` — list/delete config history
+  - `/api/v2/diagnostics/command_prompt` — shell command execution (used by optics:show)
 
 **API limitations** (not exposed by pfSense REST API v2 on pfSense 2.7.x):
 - Gateway groups — configure in GUI: `System > Routing > Gateway Groups`
