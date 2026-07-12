@@ -348,19 +348,21 @@ program
 program
   .command('nordvpn:rotate-wg')
   .description('Rotate NordVPN WireGuard peer to the lowest-load server from the API')
-  .option('--token <token>',       'NordVPN access token (default: NORDVPN_TOKEN env var)')
-  .option('--country-id <id>',     'NordVPN country ID (228 = US)',                 '228')
-  .option('-t, --tunnel <descr>',  'WireGuard tunnel description in pfSense',       'ProtonVPN01')
-  .option('-m, --monitor-ip <ip>', 'Gateway monitor IP (informational only)',       '1.1.1.1')
-  .option('--dry-run',             'Print planned change without applying')
+  .option('--token <token>',          'NordVPN access token (default: NORDVPN_TOKEN env var)')
+  .option('--country-id <id>',        'NordVPN country ID (228 = US)',                 '228')
+  .option('-t, --tunnel <descr>',     'WireGuard tunnel description in pfSense',       'NordVPNWG01')
+  .option('-g, --gateway-name <gw>',  'pfSense gateway name to check before rotating', 'NORDVPNWG_GW')
+  .option('-m, --monitor-ip <ip>',    'Gateway monitor IP (informational only)',        '1.1.1.1')
+  .option('--dry-run',                'Print planned change without applying')
   .action(async (options) => {
     try {
       await rotateNordVPNWG({
-        accessToken: options.token || process.env.NORDVPN_TOKEN,
-        countryId:   parseInt(options.countryId, 10),
-        tunnelDescr: options.tunnel,
-        monitorIP:   options.monitorIp,
-        dryRun:      !!options.dryRun,
+        accessToken:  options.token || process.env.NORDVPN_TOKEN,
+        countryId:    parseInt(options.countryId, 10),
+        tunnelDescr:  options.tunnel,
+        gatewayName:  options.gatewayName,
+        monitorIP:    options.monitorIp,
+        dryRun:       !!options.dryRun,
       });
     } catch (error) {
       console.error('Error:', error.message);

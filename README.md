@@ -350,27 +350,39 @@ make wg-provision \
 
 #### Server rotation
 
-Fetches the lowest-load US WireGuard server from the NordVPN API and updates the peer endpoint in pfSense without a full teardown.
+Fetches the lowest-load US WireGuard server from the NordVPN API and updates the peer endpoint in pfSense without a full teardown. Checks that `NORDVPNWG_GW` is online before rotating — skips silently if the tunnel is down. After rotating, automatically updates `/var/db/nordvpn-wg-peer.conf` on pfSense so the watchdog uses the new endpoint.
 
 ```bash
-NORDVPN_TOKEN=<access_token> make nordvpn-rotate-wg
+make nordvpn-rotate-wg
 
 # Different country (country_id lookup: api.nordvpn.com/v1/servers/countries)
-NORDVPN_TOKEN=<token> make nordvpn-rotate-wg COUNTRY_ID=228
+make nordvpn-rotate-wg COUNTRY_ID=228
 
 # Preview without applying
-NORDVPN_TOKEN=<token> make nordvpn-rotate-wg DRY_RUN=1
+make nordvpn-rotate-wg DRY_RUN=1
 ```
 
-After rotation, update `/var/db/nordvpn-wg-peer.conf` on pfSense so the watchdog has the correct endpoint for recovery:
+`NORDVPN_TOKEN` is read from `.env` automatically.
 
-```sh
-cat > /var/db/nordvpn-wg-peer.conf << 'EOF'
-PEER_PK=<new_server_pubkey>
-ENDPOINT=<new_server_ip>:51820
-ALLOWED_IPS=0.0.0.0/0,::/0
-EOF
+#### Scheduled rotation
+
+Install a cron job on the local machine to rotate the server automatically:
+
+```bash
+# Install: every 6 hours (default)
+make nordvpn-schedule-rotation
+
+# Custom schedule (e.g. daily at 4am)
+make nordvpn-schedule-rotation ROTATE_SCHEDULE="0 4 * * *"
+
+# Show installed cron
+make nordvpn-rotation-status
+
+# Remove
+make nordvpn-unschedule-rotation
 ```
+
+Rotation output is appended to `/tmp/nordvpn-rotate.log` by default (override with `ROTATE_LOG=`). Skips if the gateway is offline — safe to run on any schedule.
 
 #### Watchdog (120s deadlock prevention)
 
@@ -406,7 +418,10 @@ make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
 |--------|-------------|
 | `nordvpn-servers` | List recommended WireGuard servers (`COUNTRY_ID=228`) |
 | `nordvpn-creds` | Fetch nordlynx_private_key from API (`NORDVPN_TOKEN=`) |
-| `nordvpn-rotate-wg` | Rotate to lowest-load server (`NORDVPN_TOKEN=`, `COUNTRY_ID=`, `TUNNEL=`, `DRY_RUN=`) |
+| `nordvpn-rotate-wg` | Rotate to lowest-load server — checks gateway first, updates watchdog peer conf (`COUNTRY_ID=`, `TUNNEL=`, `GW_NAME=`, `DRY_RUN=`) |
+| `nordvpn-schedule-rotation` | Install a cron job for scheduled rotation (`ROTATE_SCHEDULE=`, `COUNTRY_ID=`, `TUNNEL=`) |
+| `nordvpn-rotation-status` | Show installed rotation cron job |
+| `nordvpn-unschedule-rotation` | Remove the rotation cron job |
 | `nordvpn-teardown-wg` | Remove kill-switch rules, NAT, gateway, peer (`TUNNEL=`, `IFACE=`, `GW=`, `DELETE_TUNNEL=`) |
 
 ### Firewall Alias Management

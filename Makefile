@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import bulk-export cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import bulk-export cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard nordvpn-schedule-rotation nordvpn-unschedule-rotation nordvpn-rotation-status
 
 .DEFAULT_GOAL := help
 
@@ -273,12 +273,30 @@ nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228]
 nordvpn-creds: ## Fetch NordVPN nordlynx_private_key and VPN credentials ([NORDVPN_TOKEN=] falls back to .env)
 	@node cli.js nordvpn:creds $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)")
 
-nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([NORDVPN_TOKEN=] [COUNTRY_ID=228] [TUNNEL=NordVPNWG01] [DRY_RUN=1])
+nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([NORDVPN_TOKEN=] [COUNTRY_ID=228] [TUNNEL=NordVPNWG01] [GW_NAME=NORDVPNWG_GW] [DRY_RUN=1])
 	@node cli.js nordvpn:rotate-wg \
 	  $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)") \
 	  --country-id "$(COUNTRY_ID)" \
 	  $(if $(TUNNEL),--tunnel "$(TUNNEL)") \
+	  $(if $(GW_NAME),--gateway-name "$(GW_NAME)") \
 	  $(if $(DRY_RUN),--dry-run)
+
+ROTATE_SCHEDULE  ?= 0 */6 * * *
+ROTATE_LOG       ?= /tmp/nordvpn-rotate.log
+
+nordvpn-schedule-rotation: ## Install a cron to auto-rotate NordVPN WG server ([ROTATE_SCHEDULE="0 */6 * * *"] [COUNTRY_ID=228] [TUNNEL=] [GW_NAME=])
+	@JOB="$(ROTATE_SCHEDULE) cd $(CURDIR) && COUNTRY_ID=$(COUNTRY_ID) TUNNEL=$(TUNNEL) GATEWAY_NAME=$(GW_NAME) LOG_FILE=$(ROTATE_LOG) sh scripts/rotate-nordvpn-wg.sh"; \
+	( crontab -l 2>/dev/null | grep -v 'rotate-nordvpn-wg'; echo "$$JOB" ) | crontab -
+	@echo "Installed cron: $(ROTATE_SCHEDULE)"
+	@echo "Logs: $(ROTATE_LOG)"
+	@echo "Run 'make nordvpn-rotation-status' to verify"
+
+nordvpn-unschedule-rotation: ## Remove the NordVPN WireGuard rotation cron job
+	@crontab -l 2>/dev/null | grep -v 'rotate-nordvpn-wg' | crontab - || true
+	@echo "Removed NordVPN WireGuard rotation cron job"
+
+nordvpn-rotation-status: ## Show current NordVPN WireGuard rotation cron job (if any)
+	@crontab -l 2>/dev/null | grep 'rotate-nordvpn-wg' || echo "(no NordVPN rotation cron installed)"
 
 nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([TUNNEL=NordVPNWG01] [IFACE=NORDVPNWG] [GW=] [DELETE_TUNNEL=1])
 	@node cli.js nordvpn:teardown-wg \
