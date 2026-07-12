@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import cert-list cert-import cert-delete cert-renew config-history config-history-prune optics-show
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard
 
 .DEFAULT_GOAL := help
 
@@ -258,8 +258,14 @@ CERT_FILE     ?=
 KEY_FILE      ?=
 CERT_TYPE     ?= server
 CERT_REFID    ?=
+EXPIRING      ?= 30
 KEEP_LAST     ?=
 OLDER_THAN    ?=
+DOMAIN        ?=
+DNS_HOOK      ?= dns_cf
+MAC           ?=
+IP            ?=
+HOSTNAME_VAL  ?=
 
 nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228])
 	@node cli.js nordvpn:servers --country-id "$(COUNTRY_ID)"
@@ -408,6 +414,57 @@ bulk-import: ## Import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RU
 	fi
 	@node cli.js bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
 
+##@ DHCP
+
+dhcp-list: ## List DHCP static mappings ([IFACE=lan] [FILTER=])
+	@node cli.js dhcp:list \
+	  $(if $(IFACE),--interface "$(IFACE)") \
+	  $(if $(FILTER),--filter "$(FILTER)")
+
+dhcp-add: ## Add a DHCP static mapping (IFACE= MAC= [IP=] [HOSTNAME_VAL=] [DESC=] [GW=])
+	@if [ -z "$(IFACE)" ] || [ -z "$(MAC)" ]; then \
+		echo "Error: IFACE and MAC are required"; \
+		echo "Usage: make dhcp-add IFACE=lan MAC=aa:bb:cc:dd:ee:ff IP=192.168.7.50 HOSTNAME_VAL=mydevice"; \
+		exit 1; \
+	fi
+	@node cli.js dhcp:add \
+	  --interface "$(IFACE)" \
+	  --mac "$(MAC)" \
+	  $(if $(IP),--ip "$(IP)") \
+	  $(if $(HOSTNAME_VAL),--hostname "$(HOSTNAME_VAL)") \
+	  $(if $(DESC),--description "$(DESC)") \
+	  $(if $(GW),--gateway "$(GW)")
+
+dhcp-update: ## Update a DHCP static mapping (IFACE= MAC= [IP=] [HOSTNAME_VAL=] [DESC=] [GW=])
+	@if [ -z "$(IFACE)" ] || [ -z "$(MAC)" ]; then \
+		echo "Error: IFACE and MAC are required"; \
+		exit 1; \
+	fi
+	@node cli.js dhcp:update \
+	  --interface "$(IFACE)" \
+	  --mac "$(MAC)" \
+	  $(if $(IP),--ip "$(IP)") \
+	  $(if $(HOSTNAME_VAL),--hostname "$(HOSTNAME_VAL)") \
+	  $(if $(DESC),--description "$(DESC)") \
+	  $(if $(GW),--gateway "$(GW)")
+
+dhcp-delete: ## Delete a DHCP static mapping (IFACE= MAC=)
+	@if [ -z "$(IFACE)" ] || [ -z "$(MAC)" ]; then \
+		echo "Error: IFACE and MAC are required"; \
+		echo "Usage: make dhcp-delete IFACE=lan MAC=aa:bb:cc:dd:ee:ff"; \
+		exit 1; \
+	fi
+	@node cli.js dhcp:delete --interface "$(IFACE)" --mac "$(MAC)"
+
+cert-renew-wildcard: ## Renew wildcard cert via acme.sh and import into pfSense (DOMAIN= CERT_NAME= [DNS_HOOK=dns_cf])
+	@if [ -z "$(DOMAIN)" ] || [ -z "$(CERT_NAME)" ]; then \
+		echo "Error: DOMAIN and CERT_NAME are required"; \
+		echo "Usage: make cert-renew-wildcard DOMAIN=example.com CERT_NAME=wildcard-example"; \
+		exit 1; \
+	fi
+	@DOMAIN="$(DOMAIN)" CERT_NAME="$(CERT_NAME)" DNS_HOOK="$(DNS_HOOK)" \
+	  sh scripts/renew-wildcard-cert.sh
+
 ##@ Diagnostics
 
 optics-show: ## Show SFP+ transceiver DDM diagnostics ([IFACE=igb0])
@@ -442,6 +499,9 @@ cert-delete: ## Delete a certificate (CERT_NAME= or CERT_REFID=)
 	@node cli.js cert:delete \
 	  $(if $(CERT_NAME),--name "$(CERT_NAME)") \
 	  $(if $(CERT_REFID),--refid "$(CERT_REFID)")
+
+cert-check: ## Exit 1 if any cert expires within EXPIRING days — for monitoring (default: 30)
+	@node cli.js cert:check --expiring "$(EXPIRING)"
 
 cert-renew: ## Renew an internally-generated certificate (CERT_NAME= or CERT_REFID=)
 	@if [ -z "$(CERT_NAME)" ] && [ -z "$(CERT_REFID)" ]; then \

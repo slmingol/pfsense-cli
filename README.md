@@ -31,7 +31,9 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **Firewall Alias Management** - Create/update pfSense host aliases; add or remove IPs without touching firewall rules  
 ✓ **Firewall Rule Management** - List, add, delete, and update pfSense firewall rules  
 ✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support  
-✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, and renew  
+✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, renew, and check expiry (Nagios-compatible exit codes)  
+✓ **Wildcard Cert Renewal** - Renew Let's Encrypt wildcard certs via acme.sh DNS-01 challenge and import into pfSense in one step  
+✓ **DHCP Static Mappings** - List, add, update, and delete DHCP static host-to-IP assignments across all interfaces  
 ✓ **Configuration History** - List and prune pfSense config history revisions  
 ✓ **SFP+ Optics Diagnostics** - Read transceiver DDM data (TX/RX power, temperature, voltage) for SFP+ interfaces  
 ✓ Idempotent - safe to re-run; all commands check before creating  
@@ -661,11 +663,73 @@ make cert-delete CERT_REFID=6789abc123
 
 # Renew an internally-generated certificate
 make cert-renew CERT_NAME=mysite
+
+# Check for expiring/expired certs (exits 1 if found — Nagios/monitoring compatible)
+make cert-check
+
+# Check with a custom threshold (default 30 days)
+make cert-check EXPIRING=60
 ```
 
 > **Let's Encrypt**: Obtain the certificate using any ACME client (certbot, acme.sh, etc.) on a host that can fulfill the challenge, then import the resulting `fullchain.pem` and `privkey.pem` with `cert-import`. The pfSense ACME package is not exposed via the REST API.
 
 > **Cert in use**: pfSense returns HTTP 403 if you try to delete a certificate that is referenced by a service (e.g. an active HAProxy frontend). Remove the reference in the GUI or via the API first.
+
+#### Wildcard Certificate Renewal
+
+Automate renewal of a Let's Encrypt wildcard certificate via DNS-01 challenge (acme.sh) and import the result into pfSense:
+
+```bash
+# Renew *.lamolabs.org and import as "wildcard-lamolabs" in pfSense cert manager
+make cert-renew-wildcard DOMAIN=lamolabs.org CERT_NAME=wildcard-lamolabs
+
+# Use a different DNS provider hook (default: dns_cf for Cloudflare)
+make cert-renew-wildcard DOMAIN=example.com CERT_NAME=wildcard-example DNS_HOOK=dns_aws
+
+# Test with Let's Encrypt staging
+STAGING=1 make cert-renew-wildcard DOMAIN=lamolabs.org CERT_NAME=wildcard-lamolabs
+```
+
+Required environment variables (set in `.env` or shell):
+
+| Variable | Description |
+|----------|-------------|
+| `DOMAIN` | Base domain (e.g. `lamolabs.org`) — cert will cover `*.DOMAIN` and `DOMAIN` |
+| `CERT_NAME` | Name to use in pfSense certificate manager |
+| `DNS_HOOK` | acme.sh DNS plugin (default: `dns_cf`) |
+| `CF_Token` / `CF_Account_ID` | Cloudflare API credentials (for `dns_cf`) |
+
+acme.sh must be installed (`~/.acme.sh/acme.sh`). The script treats exit code 2 (not yet due) as success, so it is safe to run on a schedule.
+
+### DHCP Static Mappings
+
+Manage DHCP static host-to-IP assignments across all interfaces. Reads from the embedded `staticmap` arrays returned by the pfSense DHCP server API; writes via the singular static_mapping endpoint with automatic apply.
+
+```bash
+# List all static mappings across all interfaces
+make dhcp-list
+
+# Filter by MAC, IP, hostname, or description
+make dhcp-list FILTER=k8s
+make dhcp-list FILTER=192.168.7
+
+# Limit to a single interface
+make dhcp-list IFACE=lan
+
+# Add a static mapping
+make dhcp-add IFACE=lan MAC=aa:bb:cc:dd:ee:ff IP=192.168.7.50 HOSTNAME_VAL=myhost DESC="my device"
+
+# Add with a custom DNS server
+make dhcp-add IFACE=lan MAC=aa:bb:cc:dd:ee:ff IP=192.168.7.50 DNS=192.168.7.1
+
+# Update an existing mapping (looked up by MAC)
+make dhcp-update IFACE=lan MAC=aa:bb:cc:dd:ee:ff IP=192.168.7.51 HOSTNAME_VAL=newname
+
+# Delete a mapping
+make dhcp-delete IFACE=lan MAC=aa:bb:cc:dd:ee:ff
+```
+
+Interface names match pfSense convention (`lan`, `opt2`, `opt3`, etc.). Changes are applied immediately via `dhcp_server/apply` after each mutation.
 
 ### Configuration History
 

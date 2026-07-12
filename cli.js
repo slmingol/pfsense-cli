@@ -8,7 +8,8 @@ const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteA
         listRules, addRule, deleteRule, updateRule } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const { bulkImport } = require('./lib/bulk');
-const { listCerts, importCert, deleteCert, renewCert } = require('./lib/cert');
+const { listCerts, importCert, deleteCert, renewCert, checkCerts } = require('./lib/cert');
+const { listStaticMappings, addStaticMapping, updateStaticMapping, deleteStaticMapping } = require('./lib/dhcp');
 const { showOptics } = require('./lib/optics');
 const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
 const fs = require('fs');
@@ -608,6 +609,92 @@ program
   });
 
 // ---------------------------------------------------------------------------
+// DHCP static mapping commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('dhcp:list')
+  .description('List DHCP static mappings')
+  .option('-i, --interface <iface>', 'Filter by interface (e.g. lan, opt1, opt2)')
+  .option('-f, --filter <text>',     'Filter by MAC, IP, hostname, or description')
+  .action(async (options) => {
+    try {
+      await listStaticMappings({ iface: options.interface, filter: options.filter });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('dhcp:add')
+  .description('Add a DHCP static mapping (MAC → IP)')
+  .requiredOption('-i, --interface <iface>', 'Interface (e.g. lan, opt1)')
+  .requiredOption('-m, --mac <mac>',         'MAC address')
+  .option('-a, --ip <ip>',                   'IP address to assign')
+  .option('-H, --hostname <name>',           'Hostname to assign via DHCP')
+  .option('-D, --description <text>',        'Description')
+  .option('--dns <ip>',                      'DNS server (repeatable)', (v, a) => { a.push(v); return a; }, [])
+  .option('-g, --gateway <ip>',              'Override gateway')
+  .action(async (options) => {
+    try {
+      await addStaticMapping({
+        iface:       options.interface,
+        mac:         options.mac,
+        ip:          options.ip,
+        hostname:    options.hostname,
+        description: options.description,
+        dns:         options.dns,
+        gateway:     options.gateway,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('dhcp:update')
+  .description('Update an existing DHCP static mapping')
+  .requiredOption('-i, --interface <iface>', 'Interface (e.g. lan, opt1)')
+  .requiredOption('-m, --mac <mac>',         'MAC address to look up')
+  .option('-a, --ip <ip>',                   'New IP address')
+  .option('-H, --hostname <name>',           'New hostname')
+  .option('-D, --description <text>',        'New description')
+  .option('--dns <ip>',                      'New DNS server (repeatable)', (v, a) => { a.push(v); return a; }, [])
+  .option('-g, --gateway <ip>',              'New gateway override')
+  .action(async (options) => {
+    try {
+      await updateStaticMapping({
+        iface:       options.interface,
+        mac:         options.mac,
+        ip:          options.ip,
+        hostname:    options.hostname,
+        description: options.description,
+        dns:         options.dns.length ? options.dns : undefined,
+        gateway:     options.gateway,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('dhcp:delete')
+  .description('Delete a DHCP static mapping')
+  .requiredOption('-i, --interface <iface>', 'Interface (e.g. lan, opt1)')
+  .requiredOption('-m, --mac <mac>',         'MAC address')
+  .action(async (options) => {
+    try {
+      await deleteStaticMapping({ iface: options.interface, mac: options.mac });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
 // Optics command
 // ---------------------------------------------------------------------------
 
@@ -688,6 +775,19 @@ program
   .action(async (options) => {
     try {
       await renewCert({ name: options.name, refid: options.refid });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('cert:check')
+  .description('Exit 1 if any certificate expires within N days (for monitoring/alerting)')
+  .option('-e, --expiring <days>', 'Threshold in days', '30')
+  .action(async (options) => {
+    try {
+      await checkCerts({ expiringDays: parseInt(options.expiring, 10) });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
