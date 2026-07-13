@@ -152,6 +152,7 @@ else
     if [ ! -f "$DOWN_FILE" ]; then
         remove_peer
         echo "$NOW" > "$DOWN_FILE"
+        echo "$NOW" > "$RESET_FILE"
         logger -t nordvpn-watchdog "GW down: peer removed, backoff started"
         exit 0
     fi
@@ -159,23 +160,24 @@ else
     DOWN_SINCE=$(cat "$DOWN_FILE")
     DOWN_AGE=$((NOW - DOWN_SINCE))
 
-    # Escalation check: if down longer than ESCALATION_TIME, rotate server
+    # Escalation check: if down longer than ESCALATION_TIME, rotate server.
+    # DOWN_FILE is never reset during reactive resets so this accumulates correctly.
     if [ "$DOWN_AGE" -ge "$ESCALATION_TIME" ]; then
         logger -t nordvpn-watchdog "GW down ${DOWN_AGE}s — escalating to new server"
         do_escalate
         exit 0
     fi
 
-    if [ "$DOWN_AGE" -lt "$DOWN_BACKOFF" ]; then
+    # Use AGE (time since RESET_FILE) for the per-attempt backoff,
+    # not DOWN_AGE — keeps escalation and backoff timers independent.
+    if [ "$AGE" -lt "$DOWN_BACKOFF" ]; then
         # In backoff — keep peer removed so server gets true silence
         remove_peer
         exit 0
     fi
 
-    # 300s backoff expired — attempt one fresh handshake
-    logger -t nordvpn-watchdog "reactive reset after ${DOWN_AGE}s down"
+    # Backoff expired — attempt one fresh handshake.
+    # Do NOT reset DOWN_FILE so escalation timer keeps accumulating.
+    logger -t nordvpn-watchdog "reactive reset after ${DOWN_AGE}s down (${AGE}s since last reset)"
     do_reset && logger -t nordvpn-watchdog "reactive reset: peer re-added, awaiting handshake"
-    # Reset DOWN_FILE: next cron removes peer if handshake fails,
-    # giving server another 300s of silence before next attempt.
-    echo "$NOW" > "$DOWN_FILE"
 fi

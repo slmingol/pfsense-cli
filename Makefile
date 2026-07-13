@@ -247,8 +247,9 @@ wg-teardown: ## Remove WireGuard rules, NAT, gateway, and peer ([TUNNEL=ProtonVP
 
 ##@ NordVPN WireGuard
 
-NORDVPN_TOKEN ?=
-COUNTRY_ID    ?= 228
+NORDVPN_TOKEN  ?=
+NORDVPN_TUNNEL ?= NordVPNWG01
+COUNTRY_ID     ?= 228
 DRY_RUN       ?=
 DELETE_TUNNEL ?=
 BULK_FILE     ?=
@@ -272,18 +273,17 @@ nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228]
 nordvpn-creds: ## Fetch NordVPN nordlynx_private_key and VPN credentials ([NORDVPN_TOKEN=] falls back to .env)
 	@node cli.js nordvpn:creds $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)")
 
-nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([NORDVPN_TOKEN=] [COUNTRY_ID=228] [TUNNEL=NordVPNWG01] [GW_NAME=NORDVPNWG_GW] [DRY_RUN=1] [FORCE=1])
+nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([COUNTRY_ID=228] [NORDVPN_TUNNEL=NordVPNWG01] [GW_NAME=NORDVPNWG_GW] [DRY_RUN=1] [FORCE=1])
 	@node cli.js nordvpn:rotate-wg \
-	  $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)") \
 	  --country-id "$(COUNTRY_ID)" \
-	  $(if $(TUNNEL),--tunnel "$(TUNNEL)") \
+	  --tunnel "$(NORDVPN_TUNNEL)" \
 	  $(if $(GW_NAME),--gateway-name "$(GW_NAME)") \
 	  $(if $(DRY_RUN),--dry-run) \
 	  $(if $(FORCE),--force)
 
-nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([TUNNEL=NordVPNWG01] [IFACE=NORDVPNWG] [GW=] [DELETE_TUNNEL=1])
+nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([NORDVPN_TUNNEL=NordVPNWG01] [IFACE=NORDVPNWG] [GW=] [DELETE_TUNNEL=1])
 	@node cli.js nordvpn:teardown-wg \
-	  $(if $(TUNNEL),--tunnel "$(TUNNEL)") \
+	  --tunnel "$(NORDVPN_TUNNEL)" \
 	  $(if $(IFACE),--iface-name "$(IFACE)") \
 	  $(if $(GW),--gateway-name "$(GW)") \
 	  $(if $(DELETE_TUNNEL),--delete-tunnel)
