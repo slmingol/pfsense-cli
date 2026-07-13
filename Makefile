@@ -1,6 +1,6 @@
 export NODE_NO_WARNINGS = 1
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import bulk-export cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard nordvpn-schedule-rotation nordvpn-unschedule-rotation nordvpn-rotation-status
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import bulk-export cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard nordvpn-schedule-rotation nordvpn-unschedule-rotation nordvpn-rotation-status nordvpn-schedule-recovery nordvpn-unschedule-recovery nordvpn-recovery-status
 
 .DEFAULT_GOAL := help
 
@@ -282,8 +282,11 @@ nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([NORDVPN_T
 	  $(if $(DRY_RUN),--dry-run) \
 	  $(if $(FORCE),--force)
 
-ROTATE_SCHEDULE  ?= 0 */6 * * *
-ROTATE_LOG       ?= /tmp/nordvpn-rotate.log
+ROTATE_SCHEDULE   ?= 0 */6 * * *
+ROTATE_LOG        ?= /tmp/nordvpn-rotate.log
+RECOVERY_SCHEDULE ?= */5 * * * *
+RECOVERY_LOG      ?= /tmp/nordvpn-recover.log
+RECOVERY_THRESHOLD ?= 300
 
 nordvpn-schedule-rotation: ## Install a cron to auto-rotate NordVPN WG server ([ROTATE_SCHEDULE="0 */6 * * *"] [COUNTRY_ID=228] [TUNNEL=] [GW_NAME=])
 	@JOB="$(ROTATE_SCHEDULE) cd $(CURDIR) && COUNTRY_ID=$(COUNTRY_ID) TUNNEL=$(TUNNEL) GATEWAY_NAME=$(GW_NAME) LOG_FILE=$(ROTATE_LOG) sh scripts/rotate-nordvpn-wg.sh"; \
@@ -298,6 +301,20 @@ nordvpn-unschedule-rotation: ## Remove the NordVPN WireGuard rotation cron job
 
 nordvpn-rotation-status: ## Show current NordVPN WireGuard rotation cron job (if any)
 	@crontab -l 2>/dev/null | grep 'rotate-nordvpn-wg' || echo "(no NordVPN rotation cron installed)"
+
+nordvpn-schedule-recovery: ## Install a cron to auto-recover NordVPN WG when server is dead ([RECOVERY_SCHEDULE="*/5 * * * *"] [RECOVERY_THRESHOLD=300])
+	@JOB="$(RECOVERY_SCHEDULE) cd $(CURDIR) && RECOVERY_THRESHOLD=$(RECOVERY_THRESHOLD) COUNTRY_ID=$(COUNTRY_ID) TUNNEL=$(TUNNEL) GATEWAY_NAME=$(GW_NAME) LOG_FILE=$(RECOVERY_LOG) sh scripts/recover-nordvpn-wg.sh"; \
+	( crontab -l 2>/dev/null | grep -v 'recover-nordvpn-wg'; echo "$$JOB" ) | crontab -
+	@echo "Installed cron: $(RECOVERY_SCHEDULE) (escalates after $(RECOVERY_THRESHOLD)s down)"
+	@echo "Logs: $(RECOVERY_LOG)"
+	@echo "Complements the pfSense watchdog escalation (10min) for when Mac is on"
+
+nordvpn-unschedule-recovery: ## Remove the NordVPN WireGuard recovery cron job
+	@crontab -l 2>/dev/null | grep -v 'recover-nordvpn-wg' | crontab - || true
+	@echo "Removed NordVPN WireGuard recovery cron job"
+
+nordvpn-recovery-status: ## Show current NordVPN WireGuard recovery cron (if any)
+	@crontab -l 2>/dev/null | grep 'recover-nordvpn-wg' || echo "(no NordVPN recovery cron installed)"
 
 nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([TUNNEL=NordVPNWG01] [IFACE=NORDVPNWG] [GW=] [DELETE_TUNNEL=1])
 	@node cli.js nordvpn:teardown-wg \

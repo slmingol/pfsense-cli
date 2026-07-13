@@ -6,14 +6,21 @@
 # When GW is down: removes the peer to silence Handshake Initiations
 # (prevents server-side rate limiting). Attempts one reset every DOWN_BACKOFF
 # seconds — giving the server true silence between attempts.
+#
+# Escalation: if the GW stays down for more than ESCALATION_TIME seconds
+# (default: 600 = 10 min), fetches a new NordVPN server from the public API
+# and rotates to it directly — no operator intervention required.
 
 WG_IFACE="tun_wg1"
 GW_NAME="NORDVPNWG_GW"
+COUNTRY_ID="228"
 RESET_FILE="/var/db/nordvpn-wg-last-reset"
 DOWN_FILE="/var/db/nordvpn-wg-down-since"
+ESCALATE_FILE="/var/db/nordvpn-wg-last-escalation"
 PEER_CONF="/var/db/nordvpn-wg-peer.conf"
 MAX_SESSION=85
 DOWN_BACKOFF=300
+ESCALATION_TIME=600
 
 NOW=$(date +%s)
 
@@ -69,6 +76,71 @@ do_reset() {
     echo "$NOW" > "$RESET_FILE"
 }
 
+# Fetch lowest-load NordVPN WireGuard server from public API.
+# Uses curl (available on pfSense) + PHP for JSON parsing.
+# Writes NEW_IP and NEW_PK variables on success; returns 1 on failure.
+fetch_best_server() {
+    local json url
+    url="https://api.nordvpn.com/v1/servers?filters%5Bservers_groups%5D%5Bidentifier%5D=legacy_nordlynx&filters%5Bservers_countries%5D%5Bid%5D=${COUNTRY_ID}&limit=20"
+    json=$(fetch -qo - "$url" 2>/dev/null) || return 1
+
+    local result
+    result=$(echo "$json" | php -r "
+\$servers = json_decode(stream_get_contents(STDIN), true);
+if (!is_array(\$servers)) exit(1);
+usort(\$servers, function(\$a, \$b) { return \$a['load'] - \$b['load']; });
+foreach (\$servers as \$s) {
+    \$ip = \$s['station'] ?? '';
+    \$pk = '';
+    foreach (\$s['technologies'] ?? [] as \$t) {
+        if (\$t['identifier'] === 'wireguard_udp') {
+            foreach (\$t['metadata'] ?? [] as \$m) {
+                if (\$m['name'] === 'public_key') { \$pk = \$m['value']; }
+            }
+        }
+    }
+    if (\$ip && \$pk) { echo \$ip . ' ' . \$pk; exit(0); }
+}
+exit(1);
+" 2>/dev/null) || return 1
+
+    NEW_IP=$(echo "$result" | awk '{print $1}')
+    NEW_PK=$(echo "$result" | awk '{print $2}')
+    [ -n "$NEW_IP" ] && [ -n "$NEW_PK" ]
+}
+
+# Escalate: rotate to a new NordVPN server fetched from the public API.
+do_escalate() {
+    logger -t nordvpn-watchdog "escalation: fetching new server from NordVPN API"
+
+    if ! fetch_best_server; then
+        logger -t nordvpn-watchdog "escalation failed: could not fetch server list"
+        return 1
+    fi
+
+    local old_pk
+    old_pk=$(wg show "$WG_IFACE" peers 2>/dev/null | head -1)
+    [ -n "$old_pk" ] && [ "$old_pk" != "$NEW_PK" ] && {
+        pfctl -k "$(wg show "$WG_IFACE" endpoints 2>/dev/null | awk '{print $2}' | cut -d: -f1)" 2>/dev/null
+        wg set "$WG_IFACE" peer "$old_pk" remove 2>/dev/null
+    }
+
+    wg set "$WG_IFACE" peer "$NEW_PK" \
+        endpoint "${NEW_IP}:51820" \
+        allowed-ips "0.0.0.0/0,::/0" \
+        persistent-keepalive 25
+
+    printf "PEER_PK=%s\nENDPOINT=%s:51820\nALLOWED_IPS=0.0.0.0/0,::/0\n" \
+        "$NEW_PK" "$NEW_IP" > "$PEER_CONF"
+    chmod 600 "$PEER_CONF"
+
+    echo "$NOW" > "$RESET_FILE"
+    echo "$NOW" > "$ESCALATE_FILE"
+    echo "$NOW" > "$DOWN_FILE"  # reset timer — give new server ESCALATION_TIME before next escalation
+
+    logger -t nordvpn-watchdog "escalation complete: new endpoint ${NEW_IP}:51820 (pk=${NEW_PK})"
+}
+
 if [ "$GW_STATUS" = "online" ]; then
     rm -f "$DOWN_FILE"
     if [ "$AGE" -gt "$MAX_SESSION" ]; then
@@ -86,6 +158,13 @@ else
 
     DOWN_SINCE=$(cat "$DOWN_FILE")
     DOWN_AGE=$((NOW - DOWN_SINCE))
+
+    # Escalation check: if down longer than ESCALATION_TIME, rotate server
+    if [ "$DOWN_AGE" -ge "$ESCALATION_TIME" ]; then
+        logger -t nordvpn-watchdog "GW down ${DOWN_AGE}s — escalating to new server"
+        do_escalate
+        exit 0
+    fi
 
     if [ "$DOWN_AGE" -lt "$DOWN_BACKOFF" ]; then
         # In backoff — keep peer removed so server gets true silence
