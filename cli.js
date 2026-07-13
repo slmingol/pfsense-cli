@@ -354,6 +354,7 @@ program
   .option('-g, --gateway-name <gw>',  'pfSense gateway name to check before rotating', 'NORDVPNWG_GW')
   .option('-m, --monitor-ip <ip>',    'Gateway monitor IP (informational only)',        '1.1.1.1')
   .option('--dry-run',                'Print planned change without applying')
+  .option('--force',                  'Rotate even if the gateway is currently down (use when server is dead)')
   .action(async (options) => {
     try {
       await rotateNordVPNWG({
@@ -363,6 +364,7 @@ program
         gatewayName:  options.gatewayName,
         monitorIP:    options.monitorIp,
         dryRun:       !!options.dryRun,
+        force:        !!options.force,
       });
     } catch (error) {
       console.error('Error:', error.message);
