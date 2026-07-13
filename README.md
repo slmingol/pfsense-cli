@@ -350,7 +350,7 @@ make wg-provision \
 
 #### Server rotation
 
-Fetches the lowest-load US WireGuard server from the NordVPN API and updates the peer endpoint in pfSense without a full teardown. Checks that `NORDVPNWG_GW` is online before rotating — skips silently if the tunnel is down. After rotating, automatically updates `/var/db/nordvpn-wg-peer.conf` on pfSense so the watchdog uses the new endpoint.
+Fetches the lowest-load US WireGuard server from the NordVPN API and updates the peer endpoint in pfSense without a full teardown. Checks that `NORDVPNWG_GW` is online before rotating — skips silently if the tunnel is down. After rotating, automatically updates `/var/db/nordvpn-wg-peer.conf` on pfSense and applies the change directly to the running WireGuard kernel.
 
 ```bash
 make nordvpn-rotate-wg
@@ -360,33 +360,19 @@ make nordvpn-rotate-wg COUNTRY_ID=228
 
 # Preview without applying
 make nordvpn-rotate-wg DRY_RUN=1
+
+# Force rotate even when the gateway is currently down (use when the server is
+# routing-dead: WG handshake alive but 100% packet loss through the tunnel)
+make nordvpn-rotate-wg FORCE=1
 ```
 
 `NORDVPN_TOKEN` is read from `.env` automatically.
 
-#### Scheduled rotation
-
-Install a cron job on the local machine to rotate the server automatically:
-
-```bash
-# Install: every 6 hours (default)
-make nordvpn-schedule-rotation
-
-# Custom schedule (e.g. daily at 4am)
-make nordvpn-schedule-rotation ROTATE_SCHEDULE="0 4 * * *"
-
-# Show installed cron
-make nordvpn-rotation-status
-
-# Remove
-make nordvpn-unschedule-rotation
-```
-
-Rotation output is appended to `/tmp/nordvpn-rotate.log` by default (override with `ROTATE_LOG=`). Skips if the gateway is offline — safe to run on any schedule.
-
-#### Watchdog (120s deadlock prevention)
+#### Watchdog (120s deadlock prevention + auto-recovery)
 
 NordVPN WireGuard (like most WireGuard implementations) hits a REKEY_AFTER_TIME=120s deadlock when both endpoints try to re-initiate simultaneously. The watchdog prevents this by proactively resetting the peer every 85 seconds when the gateway is online, and silences initiations (removes the peer) during a 300-second backoff when the gateway is offline.
+
+**Auto-recovery escalation**: if the gateway stays down for more than 10 minutes (ESCALATION_TIME=600s), the watchdog fetches a fresh NordVPN server from the public API using `fetch` + PHP (both native to pfSense/FreeBSD), swaps the peer via `wg set`, and updates the peer conf — no operator intervention required. This handles the case where the WireGuard session is live but the NordVPN server has stopped routing traffic.
 
 ```bash
 # Deploy the watchdog to pfSense (SSH as root):
@@ -418,10 +404,7 @@ make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
 |--------|-------------|
 | `nordvpn-servers` | List recommended WireGuard servers (`COUNTRY_ID=228`) |
 | `nordvpn-creds` | Fetch nordlynx_private_key from API (`NORDVPN_TOKEN=`) |
-| `nordvpn-rotate-wg` | Rotate to lowest-load server — checks gateway first, updates watchdog peer conf (`COUNTRY_ID=`, `TUNNEL=`, `GW_NAME=`, `DRY_RUN=`) |
-| `nordvpn-schedule-rotation` | Install a cron job for scheduled rotation (`ROTATE_SCHEDULE=`, `COUNTRY_ID=`, `TUNNEL=`) |
-| `nordvpn-rotation-status` | Show installed rotation cron job |
-| `nordvpn-unschedule-rotation` | Remove the rotation cron job |
+| `nordvpn-rotate-wg` | Rotate to lowest-load server — checks gateway first, updates WG kernel and watchdog peer conf (`COUNTRY_ID=`, `TUNNEL=`, `GW_NAME=`, `DRY_RUN=`, `FORCE=`) |
 | `nordvpn-teardown-wg` | Remove kill-switch rules, NAT, gateway, peer (`TUNNEL=`, `IFACE=`, `GW=`, `DELETE_TUNNEL=`) |
 
 ### Firewall Alias Management
