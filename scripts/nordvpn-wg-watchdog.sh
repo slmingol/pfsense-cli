@@ -171,6 +171,16 @@ else
     # Use AGE (time since RESET_FILE) for the per-attempt backoff,
     # not DOWN_AGE — keeps escalation and backoff timers independent.
     if [ "$AGE" -lt "$DOWN_BACKOFF" ]; then
+        # Grace period: if we just escalated, keep the new peer up so the GW
+        # monitor has time to register recovery (takes ~30-60s). Without this,
+        # the next cron run removes the freshly-set escalation peer before
+        # pfSense can declare the gateway online.
+        if [ -f "$ESCALATE_FILE" ]; then
+            ESC_AGE=$(( NOW - $(cat "$ESCALATE_FILE") ))
+            if [ "$ESC_AGE" -lt "$DOWN_BACKOFF" ]; then
+                exit 0
+            fi
+        fi
         # In backoff — keep peer removed so server gets true silence
         remove_peer
         exit 0
