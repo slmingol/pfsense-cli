@@ -12,6 +12,8 @@
 # and rotates to it directly — no operator intervention required.
 
 WG_IFACE="tun_wg1"
+WG_GW="10.5.0.1"       # tun_wg1 peer-side gateway IP
+MONITOR_IP="1.1.1.1"   # dpinger monitor target for NORDVPNWG_GW
 GW_NAME="NORDVPNWG_GW"
 COUNTRY_ID="228"
 RESET_FILE="/var/db/nordvpn-wg-last-reset"
@@ -36,6 +38,15 @@ if [ -f "$RESET_FILE" ]; then
 else
     AGE=9999
 fi
+
+# Ensure the host route for the GW monitor IP exists through the WG tunnel.
+# pfSense adds this on WG apply but direct wg set calls don't trigger it.
+# Without it dpinger routes probes via igc4 (WAN) and always sees 100% loss.
+ensure_monitor_route() {
+    netstat -rn | grep -q "^${MONITOR_IP}" && return 0
+    route add -host "$MONITOR_IP" "$WG_GW" 2>/dev/null \
+        && logger -t nordvpn-watchdog "monitor route added: ${MONITOR_IP} via ${WG_GW}"
+}
 
 get_peer_info() {
     PEER_PK=$(wg show "$WG_IFACE" peers 2>/dev/null | head -1)
@@ -70,6 +81,7 @@ do_reset() {
         endpoint "$ENDPOINT" \
         allowed-ips "0.0.0.0/0,::/0" \
         persistent-keepalive 25
+    ensure_monitor_route
     printf "PEER_PK=%s\nENDPOINT=%s\nALLOWED_IPS=0.0.0.0/0,::/0\n" \
         "$PEER_PK" "$ENDPOINT" > "$PEER_CONF"
     chmod 600 "$PEER_CONF"
@@ -129,6 +141,7 @@ do_escalate() {
         endpoint "${NEW_IP}:51820" \
         allowed-ips "0.0.0.0/0,::/0" \
         persistent-keepalive 25
+    ensure_monitor_route
 
     printf "PEER_PK=%s\nENDPOINT=%s:51820\nALLOWED_IPS=0.0.0.0/0,::/0\n" \
         "$NEW_PK" "$NEW_IP" > "$PEER_CONF"
@@ -143,6 +156,7 @@ do_escalate() {
 
 if [ "$GW_STATUS" = "online" ]; then
     rm -f "$DOWN_FILE"
+    ensure_monitor_route
     if [ "$AGE" -gt "$MAX_SESSION" ]; then
         logger -t nordvpn-watchdog "proactive reset: age=${AGE}s"
         do_reset && logger -t nordvpn-watchdog "proactive reset complete"
