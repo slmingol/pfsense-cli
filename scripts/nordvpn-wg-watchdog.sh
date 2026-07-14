@@ -20,7 +20,7 @@ ESCALATE_FILE="/var/db/nordvpn-wg-last-escalation"
 PEER_CONF="/var/db/nordvpn-wg-peer.conf"
 MAX_SESSION=85
 DOWN_BACKOFF=300
-ESCALATION_TIME=600
+ESCALATION_TIME=500
 
 NOW=$(date +%s)
 
