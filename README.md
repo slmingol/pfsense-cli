@@ -366,13 +366,19 @@ make nordvpn-rotate-wg DRY_RUN=1
 make nordvpn-rotate-wg FORCE=1
 ```
 
-`NORDVPN_TOKEN` is read from `.env` automatically.
+`NORDVPN_TOKEN` is not required for rotation — the server list uses the public NordVPN API. It is only needed for `nordvpn-creds` (fetching the nordlynx_private_key).
+
+After each rotation the watchdog peer conf and WG kernel are updated directly. The monitor route (`1.1.1.1 → 10.5.0.1 via tun_wg1`) is restored automatically by the watchdog on its next run — no manual `route add` needed.
 
 #### Watchdog (120s deadlock prevention + auto-recovery)
 
 NordVPN WireGuard (like most WireGuard implementations) hits a REKEY_AFTER_TIME=120s deadlock when both endpoints try to re-initiate simultaneously. The watchdog prevents this by proactively resetting the peer every 85 seconds when the gateway is online, and silences initiations (removes the peer) during a 300-second backoff when the gateway is offline.
 
-**Auto-recovery escalation**: if the gateway stays down for more than 10 minutes (ESCALATION_TIME=600s), the watchdog fetches a fresh NordVPN server from the public API using `fetch` + PHP (both native to pfSense/FreeBSD), swaps the peer via `wg set`, and updates the peer conf — no operator intervention required. This handles the case where the WireGuard session is live but the NordVPN server has stopped routing traffic.
+**Auto-recovery escalation**: if the gateway stays down for more than ~8 minutes (ESCALATION_TIME=500s), the watchdog fetches a fresh NordVPN server from the public API using `fetch` + PHP (both native to pfSense/FreeBSD), swaps the peer via `wg set`, and updates the peer conf — no operator intervention required.
+
+**Monitor route maintenance**: pfSense adds a host route `1.1.1.1 → 10.5.0.1 (tun_wg1)` on WG apply. Direct `wg set` calls (used by the watchdog and by `nordvpn-rotate-wg`) bypass pfSense apply and never restore this route. Without it, dpinger sends gateway probes via the WAN interface instead of the WG tunnel, sees 100% loss, and declares the gateway down — even when the WireGuard handshake is live and the NordVPN server is healthy. The watchdog's `ensure_monitor_route()` checks and restores this route on every peer change and every healthy-gateway run, making it self-healing after reboots.
+
+**Escalation grace period**: after escalation sets a new peer, the watchdog skips the backoff `remove_peer` call for 300s so pfSense's gateway monitor has time to register recovery before the peer is yanked.
 
 ```bash
 # Deploy the watchdog to pfSense (SSH as root):
@@ -380,16 +386,25 @@ scp scripts/nordvpn-wg-watchdog.sh root@pfsense:/usr/local/bin/
 ssh root@pfsense "
   chmod +x /usr/local/bin/nordvpn-wg-watchdog.sh
   cat > /var/db/nordvpn-wg-peer.conf << 'EOF'
-  PEER_PK=<server_pubkey>
-  ENDPOINT=<server_ip>:51820
-  ALLOWED_IPS=0.0.0.0/0,::/0
-  EOF
+PEER_PK=<server_pubkey>
+ENDPOINT=<server_ip>:51820
+ALLOWED_IPS=0.0.0.0/0,::/0
+EOF
   chmod 600 /var/db/nordvpn-wg-peer.conf
   date +%s > /var/db/nordvpn-wg-last-reset
   echo '*/1 * * * * root /usr/local/bin/nordvpn-wg-watchdog.sh' \
     > /etc/cron.d/nordvpn-wg-watchdog
 "
 ```
+
+State files written to `/var/db/`:
+
+| File | Purpose |
+|------|---------|
+| `nordvpn-wg-peer.conf` | Current peer pubkey and endpoint (fallback when `wg show` has no peer) |
+| `nordvpn-wg-last-reset` | Timestamp of last peer reset — drives the 300s backoff between reactive reset attempts |
+| `nordvpn-wg-down-since` | Timestamp when the GW first went down — drives the 500s escalation timer (never reset during reactive resets) |
+| `nordvpn-wg-last-escalation` | Timestamp of last server rotation — drives the 300s post-escalation grace period |
 
 #### Tear down
 
@@ -1002,6 +1017,19 @@ netstat -rn | grep 10.5.0
 - Deploy `scripts/nordvpn-wg-watchdog.sh` (NordVPN) to proactively reset the peer every 85s
 - WAN firewall rule must allow UDP on the pfSense listen port (default 51821)
 - `PersistentKeepalive = 25` in the peer config is required; verify with `wg show`
+
+**Gateway shows 100% loss but `wg show` has a live handshake:**
+- The monitor host route is missing — dpinger is sending probes via the WAN interface instead of the WG tunnel
+- Check: `netstat -rn | grep 1.1.1.1` — should show `1.1.1.1 10.5.0.1 UGHS tun_wg1`
+- Fix immediately: `route add -host 1.1.1.1 10.5.0.1` on pfSense
+- Permanent fix: ensure the watchdog is deployed — `ensure_monitor_route()` restores it on every run
+- On pfSense, add a Shellcmd (`Services > Shellcmd`, Type: shellcmd): `route add -host 1.1.1.1 10.5.0.1` so the route survives reboots before the first watchdog run
+
+**Watchdog escalation never fires (gateway stuck down > 8 min):**
+- Verify the cron job runs from `/usr/local/bin/nordvpn-wg-watchdog.sh` (not `/usr/local/sbin/`)
+- Check: `cat /etc/cron.d/nordvpn-wg-watchdog`
+- Check state files: `down-since` age must exceed 500s; `last-reset` must exist (drives backoff timer)
+- Manually force: backdate the down-since file: `echo $(( $(date +%s) - 600 )) > /var/db/nordvpn-wg-down-since` then run the watchdog directly
 
 ### HAProxy Not Routing
 - Verify backend exists: `make haproxy-list`
