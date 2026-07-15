@@ -1,3 +1,10 @@
+## [1.2.1](https://github.com/slmingol/pfsense-cli/compare/v1.2.0...v1.2.1) (2026-07-15)
+
+
+### Documentation
+
+* document config.mk site-local Makefile overrides in README ([36bd630](https://github.com/slmingol/pfsense-cli/commit/36bd6305b32da2f4f0fe1e4f24c0906c73136e92))
+
 ## [1.2.0](https://github.com/slmingol/pfsense-cli/compare/v1.1.3...v1.2.0) (2026-07-15)
 
 
