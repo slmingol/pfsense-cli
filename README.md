@@ -30,6 +30,7 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **NordVPN WireGuard** - Fetch credentials from API, list/rotate servers, teardown  
 ✓ **Firewall Alias Management** - Create/update pfSense host aliases; add or remove IPs without touching firewall rules  
 ✓ **Firewall Rule Management** - List, add, delete, and update pfSense firewall rules  
+✓ **NAT Port Forward Management** - List, add, and delete inbound NAT port forward rules with optional auto-created firewall pass rule  
 ✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support; export current config as a reimportable JSON snapshot  
 ✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, renew, and check expiry (Nagios-compatible exit codes)  
 ✓ **Wildcard Cert Renewal** - Renew Let's Encrypt wildcard certs via acme.sh DNS-01 challenge and import into pfSense in one step  
@@ -261,6 +262,12 @@ make haproxy-add NAME=myapp SERVER=myapp.example.local PORT=8080
 
 # Delete a backend
 make haproxy-delete NAME=myapp
+
+# Convert all IP-based backend addresses to .bub.lan hostnames (dry-run)
+make haproxy-use-dns
+
+# Apply the conversion
+make haproxy-use-dns APPLY=true
 ```
 
 ### WireGuard
@@ -470,6 +477,28 @@ The `RouteThroughNordVPN_WG` alias is referenced by two firewall rules in `Firew
 | `pf-protonvpn-ks-fallback-RouteThroughNordVPN_WG` | block | `RouteThroughNordVPN_WG` | *(none — kill-switch fallback)* |
 
 The pass rule must sit above the general VPN routing rule; the block rule must immediately follow. Both are created automatically by `wg-provision KS_ALIAS=...`.
+
+### NAT Port Forward Management
+
+Create and manage inbound NAT port forward rules (Firewall > NAT > Port Forward). Pass `ADD_FW_RULE=1` to automatically create the associated WAN firewall pass rule at the same time.
+
+```bash
+# List all port forward rules (or filter by description)
+make nat-list
+make nat-list FILTER=Transmission
+
+# Add a port forward — WAN:51413 → 192.168.13.10:51413, with auto firewall rule
+make nat-add NAT_PORT=51413 NAT_TARGET=192.168.13.10 NAT_DESC="Transmission torrent client" ADD_FW_RULE=1
+
+# Forward to a different internal port
+make nat-add NAT_PORT=2022 NAT_TARGET=192.168.7.34 NAT_LOCAL_PORT=22 NAT_PROTO=tcp NAT_DESC="SSH to pivot"
+
+# Delete by id (from nat-list) or exact description
+make nat-delete NAT_ID=14
+make nat-delete NAT_DESC="Transmission torrent client"
+```
+
+API endpoints: `GET /api/v2/firewall/nat/port_forwards` (list), `POST/DELETE /api/v2/firewall/nat/port_forward` (create/delete).
 
 ### Bulk Operations
 
@@ -942,6 +971,7 @@ make add-dual-alias     # Add DNS alias to both domains
 make haproxy-list       # List HAProxy backends
 make haproxy-add        # Add HAProxy backend
 make haproxy-delete     # Delete HAProxy backend
+make haproxy-use-dns    # Convert IP backend addresses to .bub.lan hostnames (APPLY=true to commit)
 make add-service        # Complete service deployment (DNS + HAProxy); SSL=true for HTTPS backends
 make delete-service     # Complete service teardown (reverse of add-service)
 make wg-status               # Show WireGuard tunnel and peer status
@@ -961,6 +991,9 @@ make fw-rule-list            # List firewall rules (FILTER= RULE_IFACE= RULE_TYP
 make fw-rule-add             # Add a firewall rule (RULE_TYPE= RULE_IFACE= RULE_SRC= RULE_DEST= RULE_GW= ...)
 make fw-rule-delete          # Delete a firewall rule (RULE_ID= or RULE_DESC=)
 make fw-rule-update          # Update a firewall rule field (RULE_ID= or RULE_DESC=, ENABLE=1 DISABLE=1)
+make nat-list                # List NAT port forward rules ([FILTER=])
+make nat-add                 # Add a port forward (NAT_PORT= NAT_TARGET= [NAT_PROTO=tcp/udp] [NAT_LOCAL_PORT=] [NAT_DESC=] [ADD_FW_RULE=1])
+make nat-delete              # Delete a port forward (NAT_ID= or NAT_DESC=)
 make bulk-import             # Bulk import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RUN=1])
 make cert-list               # List certificates with expiry info (FILTER= EXPIRING=<days>)
 make cert-import             # Import cert+key PEM files (CERT_NAME= CERT_FILE= KEY_FILE= [CERT_TYPE=])

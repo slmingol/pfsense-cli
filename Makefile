@@ -200,6 +200,9 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 	fi
 	@docker-compose run --rm pfsense-cli haproxy:delete --name $(NAME) 2>/dev/null
 
+haproxy-use-dns: ## Convert all IP-based backend addresses to .bub.lan hostnames (APPLY=true to commit)
+	@docker-compose run --rm pfsense-cli haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) 2>/dev/null
+
 ##@ WireGuard / ProtonVPN
 
 # Expand KILL_SWITCH='a/32 b/32' into repeated --kill-switch flags
@@ -365,6 +368,37 @@ fw-rule-update: ## Update a firewall rule (RULE_ID= or RULE_DESC=, then any of: 
 	  $(if $(RULE_GW),--gateway "$(RULE_GW)") \
 	  $(if $(ENABLE),--enable) \
 	  $(if $(DISABLE),--disable)
+
+##@ NAT Port Forwards
+
+nat-list: ## List NAT port forward rules ([FILTER=])
+	@node cli.js nat:list $(if $(FILTER),--filter "$(FILTER)")
+
+nat-add: ## Add a NAT port forward rule (NAT_PORT= NAT_TARGET= [NAT_PROTO=tcp/udp] [NAT_IFACE=wan] [NAT_LOCAL_PORT=] [NAT_DESC=] [ADD_FW_RULE=1])
+	@if [ -z "$(NAT_PORT)" ] || [ -z "$(NAT_TARGET)" ]; then \
+		echo "Error: NAT_PORT and NAT_TARGET are required"; \
+		echo "Usage: make nat-add NAT_PORT=51413 NAT_TARGET=192.168.13.10 NAT_DESC='Transmission' ADD_FW_RULE=1"; \
+		exit 1; \
+	fi
+	@node cli.js nat:add \
+	  --dest-port "$(NAT_PORT)" \
+	  --target "$(NAT_TARGET)" \
+	  $(if $(NAT_PROTO),--protocol "$(NAT_PROTO)") \
+	  $(if $(NAT_IFACE),--interface "$(NAT_IFACE)") \
+	  $(if $(NAT_LOCAL_PORT),--local-port "$(NAT_LOCAL_PORT)") \
+	  $(if $(NAT_DESC),--description "$(NAT_DESC)") \
+	  $(if $(ADD_FW_RULE),--add-firewall-rule)
+
+nat-delete: ## Delete a NAT port forward rule (NAT_ID= or NAT_DESC=)
+	@if [ -z "$(NAT_ID)" ] && [ -z "$(NAT_DESC)" ]; then \
+		echo "Error: NAT_ID or NAT_DESC is required"; \
+		echo "Usage: make nat-delete NAT_ID=14"; \
+		echo "       make nat-delete NAT_DESC='Transmission torrent client'"; \
+		exit 1; \
+	fi
+	@node cli.js nat:delete \
+	  $(if $(NAT_ID),--id "$(NAT_ID)") \
+	  $(if $(NAT_DESC),--description "$(NAT_DESC)")
 
 ##@ Firewall Aliases
 
