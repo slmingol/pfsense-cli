@@ -1,3 +1,20 @@
+## [1.3.0](https://github.com/slmingol/pfsense-cli/compare/v1.2.1...v1.3.0) (2026-07-16)
+
+
+### Features
+
+* add haproxy:use-dns command to convert IP backends to hostnames ([69c38a4](https://github.com/slmingol/pfsense-cli/commit/69c38a496197208da224600567cc3363a026415e))
+
+
+### Bug Fixes
+
+* improve haproxy:use-dns UX and silence unknown make targets ([e152139](https://github.com/slmingol/pfsense-cli/commit/e152139443fdba440b5e05a31b1db4bf5d87617c))
+
+
+### Documentation
+
+* add haproxy-use-dns to Makefile and README ([af7a32f](https://github.com/slmingol/pfsense-cli/commit/af7a32f6286cef1c236b166998c26d0dc33634d1))
+
 ## [1.2.1](https://github.com/slmingol/pfsense-cli/compare/v1.2.0...v1.2.1) (2026-07-15)
 
 
