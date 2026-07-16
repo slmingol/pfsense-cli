@@ -2,10 +2,11 @@
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
-        listRules, addRule, deleteRule, updateRule } = require('./lib/firewall');
+        listRules, addRule, deleteRule, updateRule,
+        listPortForwards, addPortForward, deletePortForward } = require('./lib/firewall');
 const { rotateNordVPNWG, printNordVPNCreds, listNordVPNServers, teardownNordVPNWG } = require('./lib/nordvpn');
 const { bulkImport, bulkExport } = require('./lib/bulk');
 const { listCerts, importCert, deleteCert, renewCert, checkCerts } = require('./lib/cert');
@@ -255,6 +256,20 @@ program
         frontendName: options.frontend,
         aclName: options.acl
       });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Convert IP-based backend addresses to DNS hostnames
+program
+  .command('haproxy:use-dns')
+  .description('Convert HAProxy backend server addresses from IPs to .bub.lan hostnames (dry-run by default)')
+  .option('--apply', 'Commit changes to pfSense', false)
+  .action(async (options) => {
+    try {
+      await fixBackendDnsAddresses({ apply: options.apply });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
@@ -526,6 +541,70 @@ program
         disabled,
         descr:       options.descr,
       });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// NAT port forward commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('nat:list')
+  .description('List NAT port forward rules')
+  .option('-f, --filter <text>', 'Filter by description (case-insensitive substring)')
+  .action(async (options) => {
+    try {
+      await listPortForwards({ filter: options.filter });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('nat:add')
+  .description('Add a NAT port forward rule')
+  .requiredOption('--dest-port <port>',              'External port to forward (destination)')
+  .requiredOption('--target <ip>',                   'Internal IP to forward traffic to')
+  .option('-i, --interface <iface>',                 'WAN interface name', 'wan')
+  .option('-p, --protocol <proto>',                  'Protocol: tcp | udp | tcp/udp', 'tcp/udp')
+  .option('-s, --source <src>',                      'Source address filter', 'any')
+  .option('--local-port <port>',                     'Internal port (defaults to dest-port)')
+  .option('-d, --destination <dst>',                 'Destination address', 'wan:ip')
+  .option('-D, --description <text>',                'Rule description')
+  .option('--add-firewall-rule',                     'Auto-create associated firewall pass rule')
+  .option('--disabled',                              'Create rule in disabled state')
+  .action(async (options) => {
+    try {
+      await addPortForward({
+        iface:       options.interface,
+        protocol:    options.protocol,
+        source:      options.source,
+        destination: options.destination,
+        destPort:    options.destPort,
+        target:      options.target,
+        localPort:   options.localPort || null,
+        description: options.description || '',
+        disabled:    !!options.disabled,
+        addRule:     !!options.addFirewallRule,
+      });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('nat:delete')
+  .description('Delete a NAT port forward rule by id or description')
+  .option('-i, --id <id>',            'Rule id (from nat:list)')
+  .option('-D, --description <text>', 'Exact rule description (used if --id not given)')
+  .action(async (options) => {
+    try {
+      await deletePortForward({ id: options.id, description: options.description });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
