@@ -263,10 +263,10 @@ make haproxy-add NAME=myapp SERVER=myapp.example.local PORT=8080
 # Delete a backend
 make haproxy-delete NAME=myapp
 
-# Convert all IP-based backend addresses to .bub.lan hostnames (dry-run)
+# Dry-run: show which backend addresses would be converted to .bub.lan hostnames
 make haproxy-use-dns
 
-# Apply the conversion
+# Apply: commit the conversion
 make haproxy-use-dns APPLY=true
 ```
 

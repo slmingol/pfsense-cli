@@ -200,7 +200,7 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 	fi
 	@docker-compose run --rm pfsense-cli haproxy:delete --name $(NAME) 2>/dev/null
 
-haproxy-use-dns: ## Convert all IP-based backend addresses to .bub.lan hostnames (APPLY=true to commit)
+haproxy-use-dns: ## Dry-run by default: show which backend IPs would convert to .bub.lan hostnames (APPLY=true to apply)
 	@docker-compose run --rm pfsense-cli haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) 2>/dev/null
 
 ##@ WireGuard / ProtonVPN
@@ -608,3 +608,6 @@ cli-help: ## Show CLI command help (--help output)
 
 clean: ## Clean up Docker resources
 	docker-compose down -v
+
+.DEFAULT:
+	@:
