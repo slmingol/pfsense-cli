@@ -9,7 +9,7 @@ process.emitWarning = (warning, ...args) => {
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule,
@@ -293,6 +293,35 @@ program
   .action(async (options) => {
     try {
       await fixBackendDnsAddresses({ apply: options.apply, name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Inspect a named backend (dump raw JSON including all server fields)
+program
+  .command('haproxy:inspect')
+  .description('Print raw JSON for a HAProxy backend (useful for seeing all server fields)')
+  .requiredOption('-n, --name <name>', 'Backend name')
+  .action(async (options) => {
+    try {
+      await inspectBackend({ name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Clear resolver setting on backend servers to eliminate server-template _1 DOWN slots
+program
+  .command('haproxy:disable-resolver')
+  .description('Clear DNS resolver setting on backend servers to eliminate _1 DOWN slots (dry-run by default)')
+  .option('-n, --name <name>', 'Only process this backend')
+  .option('--apply', 'Commit changes to pfSense', false)
+  .action(async (options) => {
+    try {
+      await disableBackendResolver({ apply: options.apply, name: options.name });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
