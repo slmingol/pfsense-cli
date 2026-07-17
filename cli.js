@@ -9,7 +9,7 @@ process.emitWarning = (warning, ...args) => {
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule,
@@ -293,6 +293,19 @@ program
   .action(async (options) => {
     try {
       await fixBackendDnsAddresses({ apply: options.apply, name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Full HAProxy service restart (clears server-state file, eliminates stale _0/_1 DOWN entries)
+program
+  .command('haproxy:restart')
+  .description('Restart the HAProxy service (full restart, not just apply/reload)')
+  .action(async () => {
+    try {
+      await restartHaproxy();
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
