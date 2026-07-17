@@ -1,8 +1,15 @@
 #!/usr/bin/env node
 
+// Suppress the NODE_TLS_REJECT_UNAUTHORIZED warning emitted when .env sets it to '0'
+const _emitWarning = process.emitWarning.bind(process);
+process.emitWarning = (warning, ...args) => {
+  if (typeof warning === 'string' && warning.includes('NODE_TLS_REJECT_UNAUTHORIZED')) return;
+  _emitWarning(warning, ...args);
+};
+
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule,
@@ -262,14 +269,30 @@ program
     }
   });
 
+// Convert hostname-based backend addresses to static IPs
+program
+  .command('haproxy:use-ip')
+  .description('Convert HAProxy backend server addresses from hostnames to static IPs (dry-run by default)')
+  .option('-n, --name <name>', 'Only convert servers in this backend')
+  .option('--apply', 'Commit changes to pfSense', false)
+  .action(async (options) => {
+    try {
+      await fixBackendIpAddresses({ apply: options.apply, name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
 // Convert IP-based backend addresses to DNS hostnames
 program
   .command('haproxy:use-dns')
   .description('Convert HAProxy backend server addresses from IPs to .bub.lan hostnames (dry-run by default)')
+  .option('-n, --name <name>', 'Only convert servers in this backend')
   .option('--apply', 'Commit changes to pfSense', false)
   .action(async (options) => {
     try {
-      await fixBackendDnsAddresses({ apply: options.apply });
+      await fixBackendDnsAddresses({ apply: options.apply, name: options.name });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
