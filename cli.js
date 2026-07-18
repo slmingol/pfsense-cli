@@ -303,13 +303,8 @@ program
 program
   .command('haproxy:restart')
   .description('Restart the HAProxy service (full restart, not just apply/reload)')
-  .action(async () => {
-    try {
-      await restartHaproxy();
-    } catch (error) {
-      console.error('Error:', error.message);
-      process.exit(1);
-    }
+  .action(() => {
+    restartHaproxy();
   });
 
 // Inspect a named backend (dump raw JSON including all server fields)
