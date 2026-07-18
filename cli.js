@@ -299,6 +299,27 @@ program
     }
   });
 
+// Apply pending HAProxy config changes (also regenerates haproxy.conf and restarts the daemon if down)
+program
+  .command('haproxy:apply')
+  .description('Apply pending HAProxy config changes and restart the daemon if needed')
+  .action(async () => {
+    try {
+      const { getPfSenseClient } = require('./lib/pfsense');
+      const client = getPfSenseClient();
+      const response = await client.post('/api/v2/services/haproxy/apply');
+      if (response.data.code === 200) {
+        console.log('  \x1b[32m✓\x1b[0m HAProxy applied');
+      } else {
+        console.error('Unexpected response:', response.data);
+        process.exit(1);
+      }
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
 // Full HAProxy service restart (clears server-state file, eliminates stale _0/_1 DOWN entries)
 program
   .command('haproxy:restart')
