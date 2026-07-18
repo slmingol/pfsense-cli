@@ -4,7 +4,8 @@ export BUILDKIT_PROGRESS = quiet
 -include config.mk
 
 .PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias \
-	haproxy-list haproxy-add haproxy-delete haproxy-use-dns \
+	haproxy-list haproxy-add haproxy-delete haproxy-use-dns haproxy-use-ip \
+	haproxy-disable-resolver haproxy-inspect haproxy-apply haproxy-restart \
 	add-service delete-service list-hosts help cli-help test-api check-version \
 	wg-status wg-provision wg-apply wg-dry-run wg-teardown \
 	fw-rule-list fw-rule-add fw-rule-delete fw-rule-update \
@@ -210,8 +211,28 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 	fi
 	@node cli.js haproxy:delete --name $(NAME) 2>/dev/null
 
-haproxy-use-dns: ## Dry-run by default: show which backend IPs would convert to .bub.lan hostnames (APPLY=true to apply)
-	@node cli.js haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) 2>/dev/null
+haproxy-use-dns: ## Dry-run by default: show which backend IPs would convert to .bub.lan hostnames (APPLY=true to apply, NAME= to scope)
+	@node cli.js haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
+
+haproxy-use-ip: ## Dry-run by default: show which backend hostnames would convert to static IPs (APPLY=true to apply, NAME= to scope)
+	@node cli.js haproxy:use-ip $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
+
+haproxy-disable-resolver: ## Clear resolver config on backend servers (APPLY=true to apply, NAME= to scope)
+	@node cli.js haproxy:disable-resolver $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
+
+haproxy-inspect: ## Dump raw JSON for a named backend and its server entries (NAME= required)
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make haproxy-inspect NAME=my-backend"; \
+		exit 1; \
+	fi
+	@node cli.js haproxy:inspect --name $(NAME) 2>/dev/null
+
+haproxy-apply: ## Apply pending HAProxy config changes
+	@node cli.js haproxy:apply 2>/dev/null
+
+haproxy-restart: ## Restart the HAProxy service
+	@node cli.js haproxy:restart 2>/dev/null
 
 ##@ WireGuard / ProtonVPN
 
