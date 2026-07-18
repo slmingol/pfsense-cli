@@ -1,3 +1,10 @@
+## [1.6.0](https://github.com/slmingol/pfsense-cli/compare/v1.5.0...v1.6.0) (2026-07-18)
+
+
+### Features
+
+* add haproxy-route-add and haproxy-route-delete Makefile targets ([f13ca39](https://github.com/slmingol/pfsense-cli/commit/f13ca39eddedc475d5cdb1cc12e08b6db8b75e61))
+
 ## [1.5.0](https://github.com/slmingol/pfsense-cli/compare/v1.4.2...v1.5.0) (2026-07-18)
 
 
