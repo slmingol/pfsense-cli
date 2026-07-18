@@ -1,3 +1,10 @@
+## [1.4.2](https://github.com/slmingol/pfsense-cli/compare/v1.4.1...v1.4.2) (2026-07-18)
+
+
+### Documentation
+
+* update features table — HAProxy tooling and cert-check-schedule ([dd5915a](https://github.com/slmingol/pfsense-cli/commit/dd5915a81978264ed7c09605edf576f859852bc3))
+
 ## [1.4.1](https://github.com/slmingol/pfsense-cli/compare/v1.4.0...v1.4.1) (2026-07-18)
 
 
