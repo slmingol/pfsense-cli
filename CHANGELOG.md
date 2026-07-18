@@ -1,3 +1,10 @@
+## [1.4.0](https://github.com/slmingol/pfsense-cli/compare/v1.3.1...v1.4.0) (2026-07-18)
+
+
+### Features
+
+* add cert-check-schedule/unschedule/cron-status; scripts/check-certs.sh; split .PHONY ([292febc](https://github.com/slmingol/pfsense-cli/commit/292febc1d115c0cba5dcd8ac2f283eb8858d4b93))
+
 ## [1.3.1](https://github.com/slmingol/pfsense-cli/compare/v1.3.0...v1.3.1) (2026-07-18)
 
 
