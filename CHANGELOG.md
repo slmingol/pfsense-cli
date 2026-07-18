@@ -1,3 +1,10 @@
+## [1.4.1](https://github.com/slmingol/pfsense-cli/compare/v1.4.0...v1.4.1) (2026-07-18)
+
+
+### Documentation
+
+* document haproxy:use-ip, inspect, apply, restart, disable-resolver and cert-check-schedule in README ([5743f8f](https://github.com/slmingol/pfsense-cli/commit/5743f8f911c438819bca97ecda66b0447cfa6313))
+
 ## [1.4.0](https://github.com/slmingol/pfsense-cli/compare/v1.3.1...v1.4.0) (2026-07-18)
 
 
