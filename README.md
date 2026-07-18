@@ -266,8 +266,27 @@ make haproxy-delete NAME=myapp
 # Dry-run: show which backend addresses would be converted to .bub.lan hostnames
 make haproxy-use-dns
 
-# Apply: commit the conversion
+# Apply: commit the conversion (scope to one backend with NAME=)
 make haproxy-use-dns APPLY=true
+make haproxy-use-dns NAME=myapp APPLY=true
+
+# Dry-run: show which hostname addresses would be converted to static IPs
+make haproxy-use-ip
+make haproxy-use-ip NAME=myapp APPLY=true
+
+# Inspect raw backend JSON (useful for debugging server fields like resolver)
+make haproxy-inspect NAME=myapp
+
+# Apply pending HAProxy config changes (reload without full restart)
+make haproxy-apply
+
+# Restart HAProxy (clears stale _0/_1 DOWN server-state entries)
+# Note: pfSense API has no restart endpoint — this prints GUI instructions
+make haproxy-restart
+
+# Clear resolver config on backend servers (dry-run by default)
+make haproxy-disable-resolver
+make haproxy-disable-resolver NAME=myapp APPLY=true
 ```
 
 ### WireGuard
@@ -745,6 +764,14 @@ make cert-check
 
 # Check with a custom threshold (default 30 days)
 make cert-check EXPIRING=60
+
+# Schedule a daily cron job to run cert-check (default: 08:00)
+make cert-check-schedule
+make cert-check-schedule EXPIRING=60 CERT_CHECK_SCHEDULE="0 6 * * *"
+
+# Show or remove the cron job
+make cert-check-cron-status
+make cert-check-unschedule
 ```
 
 > **Let's Encrypt**: Obtain the certificate using any ACME client (certbot, acme.sh, etc.) on a host that can fulfill the challenge, then import the resulting `fullchain.pem` and `privkey.pem` with `cert-import`. The pfSense ACME package is not exposed via the REST API.
