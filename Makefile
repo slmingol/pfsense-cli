@@ -29,7 +29,7 @@ help: ## Show this help message
 	@printf "\n\033[1;37mpfSense CLI\033[0m — DNS & HAProxy management\n\n"
 	@awk 'BEGIN {FS = ":.*?## "} \
 	  /^##@/ { printf "\n\033[1;33m%s\033[0m\n", substr($$0, 5) } \
-	  /^[a-zA-Z_-]+:.*?## / { printf "  \033[36m%-22s\033[0m %s\n", $$1, $$2 }' \
+	  /^[a-zA-Z_-]+:.*?## / { printf "  \033[36m%-28s\033[0m %s\n", $$1, $$2 }' \
 	  $(MAKEFILE_LIST)
 	@printf "\n"
 	@printf "\033[1mExamples:\033[0m\n"
@@ -48,12 +48,13 @@ help: ## Show this help message
 	@printf "  \033[32mmake haproxy-list\033[0m  \033[90m# list all HAProxy backends\033[0m\n"
 	@printf "\n"
 	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32' KS_ALIAS=NordVPN_KS_Hosts\n"
-	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32 192.168.7.7/32' TUNNEL=ProtonVPN02 IFACE=PROTONVPN2 LISTEN_PORT=51822 MONITOR_IP=9.9.9.9\n"
+	@printf "  \033[32mmake wg-provision\033[0m CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32 192.168.7.7/32'\n"
+	@printf "                    TUNNEL=ProtonVPN02 IFACE=PROTONVPN2 LISTEN_PORT=51822 MONITOR_IP=9.9.9.9\n"
 	@printf "  \033[32mmake wg-dry-run\033[0m   CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'\n"
 	@printf "  \033[32mmake wg-teardown\033[0m  KS_ALIAS=NordVPN_KS_Hosts \033[90m# remove rules, gateway, peer, NAT, and alias\033[0m\n"
 	@printf "  \033[32mmake wg-status\033[0m    \033[90m# show tunnel and peer status\033[0m\n"
 	@printf "\n"
-	@printf "  \033[32mmake fw-alias-list\033[0m                                         \033[90m# list all firewall aliases\033[0m\n"
+	@printf "  \033[32mmake fw-alias-list\033[0m       \033[90m# list all firewall aliases\033[0m\n"
 	@printf "  \033[32mmake fw-alias-add-host\033[0m    NAME=NordVPN_KS_Hosts HOST=192.168.7.7 DETAIL='pi-vpn2'\n"
 	@printf "  \033[32mmake fw-alias-remove-host\033[0m NAME=NordVPN_KS_Hosts HOST=192.168.7.7\n"
 	@printf "\n"
