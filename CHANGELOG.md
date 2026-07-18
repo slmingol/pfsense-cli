@@ -1,3 +1,10 @@
+## [1.5.0](https://github.com/slmingol/pfsense-cli/compare/v1.4.2...v1.5.0) (2026-07-18)
+
+
+### Features
+
+* add missing haproxy Makefile targets (use-ip, disable-resolver, inspect, apply, restart) ([3b89c1a](https://github.com/slmingol/pfsense-cli/commit/3b89c1a752af2db16d7abe0d12357f19891b4a76))
+
 ## [1.4.2](https://github.com/slmingol/pfsense-cli/compare/v1.4.1...v1.4.2) (2026-07-18)
 
 
