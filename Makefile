@@ -3,7 +3,16 @@ export BUILDKIT_PROGRESS = quiet
 
 -include config.mk
 
-.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias haproxy-list haproxy-add haproxy-delete add-service delete-service list-hosts help cli-help test-api check-version wg-status wg-provision wg-apply wg-dry-run wg-teardown fw-rule-list fw-rule-add fw-rule-delete fw-rule-update fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete bulk-import bulk-export cert-list cert-import cert-delete cert-renew cert-check config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status optics-show dhcp-list dhcp-add dhcp-update dhcp-delete cert-renew-wildcard 
+.PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias \
+	haproxy-list haproxy-add haproxy-delete haproxy-use-dns \
+	add-service delete-service list-hosts help cli-help test-api check-version \
+	wg-status wg-provision wg-apply wg-dry-run wg-teardown \
+	fw-rule-list fw-rule-add fw-rule-delete fw-rule-update \
+	fw-alias-list fw-alias-create fw-alias-add-host fw-alias-remove-host fw-alias-delete \
+	bulk-import bulk-export \
+	cert-list cert-import cert-delete cert-renew cert-check cert-check-schedule cert-check-unschedule cert-check-cron-status cert-renew-wildcard \
+	config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status \
+	optics-show dhcp-list dhcp-add dhcp-update dhcp-delete
 .DEFAULT_GOAL := help
 
 HOST_BUB         ?= docker-host-01-svcs
@@ -547,6 +556,23 @@ cert-delete: ## Delete a certificate (CERT_NAME= or CERT_REFID=)
 
 cert-check: ## Exit 1 if any cert expires within EXPIRING days — for monitoring (default: 30)
 	@node cli.js cert:check --expiring "$(EXPIRING)"
+
+CERT_CHECK_SCHEDULE ?= 0 8 * * *
+CERT_CHECK_LOG      ?= /tmp/pfsense-cert-check.log
+
+cert-check-schedule: ## Install a daily cron to alert on expiring certs (EXPIRING=30 [CERT_CHECK_SCHEDULE="0 8 * * *"])
+	@JOB="$(CERT_CHECK_SCHEDULE) cd $(CURDIR) && EXPIRING=$(EXPIRING) LOG_FILE=$(CERT_CHECK_LOG) sh scripts/check-certs.sh"; \
+	( crontab -l 2>/dev/null | grep -v 'check-certs'; echo "$$JOB" ) | crontab -
+	@echo "Installed cron: $(CERT_CHECK_SCHEDULE)"
+	@echo "Logs: $(CERT_CHECK_LOG)"
+	@echo "Run 'make cert-check-cron-status' to verify"
+
+cert-check-unschedule: ## Remove the cert check cron job
+	@crontab -l 2>/dev/null | grep -v 'check-certs' | crontab - || true
+	@echo "Removed cert check cron job"
+
+cert-check-cron-status: ## Show current cert check cron job (if any)
+	@crontab -l 2>/dev/null | grep 'check-certs' || echo "(no cert check cron installed)"
 
 cert-renew: ## Renew an internally-generated certificate (CERT_NAME= or CERT_REFID=)
 	@if [ -z "$(CERT_NAME)" ] && [ -z "$(CERT_REFID)" ]; then \
