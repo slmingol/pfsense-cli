@@ -1065,10 +1065,17 @@ make clean              # Clean up Docker resources
 
 ## Documentation
 
-- **[setup-alias.sh](scripts/setup-alias.sh)** - Shell helper script with usage examples
-- **[INSTALL_API.md](docs/INSTALL_API.md)** - pfSense REST API package installation
-- **[SETUP.md](docs/SETUP.md)** - Initial setup and API configuration
-- **[ALIASES.md](docs/ALIASES.md)** - DNS alias management examples
+- **[setup-alias.sh](scripts/setup-alias.sh)** — adds a `pfsense` shell alias pointing at `node cli.js`. Source from `~/.bashrc` or `~/.zshrc`.
+- **[check-certs.sh](scripts/check-certs.sh)** — cron-safe cert expiry wrapper; sources `.env`, logs with timestamps, exits 1 on expiry. Installed by `make cert-check-schedule`.
+- **[prune-config-history.sh](scripts/prune-config-history.sh)** — cron-safe config history prune wrapper. Installed by `make config-history-schedule`.
+- **[renew-wildcard-cert.sh](scripts/renew-wildcard-cert.sh)** — renews a wildcard cert via acme.sh and imports it into pfSense. Used by `make cert-renew-wildcard`.
+- **[protonvpn-wg-watchdog.sh](scripts/protonvpn-wg-watchdog.sh)** — ProtonVPN WireGuard deadlock-prevention watchdog; runs on the pfSense router via cron. See [ProtonVPN watchdog](#protonvpn-watchdog-120s-deadlock-prevention).
+- **[nordvpn-wg-watchdog.sh](scripts/nordvpn-wg-watchdog.sh)** — NordVPN WireGuard watchdog with auto-recovery server rotation. See [NordVPN Watchdog](#watchdog-120s-deadlock-prevention--auto-recovery).
+- **[install-api.sh](scripts/install-api.sh)** — run on the pfSense box to install the REST API package for the correct pfSense version.
+- **[migrate-ks-to-alias.js](scripts/migrate-ks-to-alias.js)** — one-shot migration: replaces per-IP kill-switch rules with a single alias-based rule pair. Run once after switching to `KS_ALIAS=` mode.
+- **[INSTALL_API.md](docs/INSTALL_API.md)** — pfSense REST API package installation
+- **[SETUP.md](docs/SETUP.md)** — Initial setup and API configuration
+- **[ALIASES.md](docs/ALIASES.md)** — DNS alias management examples
 
 ## Troubleshooting
 
