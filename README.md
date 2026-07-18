@@ -352,6 +352,37 @@ make wg-teardown TUNNEL=MyVPN02 IFACE=MYVPN2
 | `LAN_SUBNET` | `192.168.7.0/24` | LAN subnet for outbound NAT |
 | `LAN` | `lan` | pfSense internal interface name for LAN |
 
+#### ProtonVPN watchdog (120s deadlock prevention)
+
+ProtonVPN WireGuard hits the same REKEY_AFTER_TIME=120s simultaneous-initiation deadlock as NordVPN. `scripts/protonvpn-wg-watchdog.sh` prevents this by proactively resetting the peer every 85 seconds when the gateway is online, and silencing initiations (removing the peer) during a 300-second backoff when offline. Unlike the NordVPN watchdog, there is no server rotation escalation — ProtonVPN uses a stable server per account.
+
+```bash
+# Deploy the watchdog to pfSense (SSH as root):
+scp scripts/protonvpn-wg-watchdog.sh root@pfsense:/usr/local/bin/
+ssh root@pfsense "
+  chmod +x /usr/local/bin/protonvpn-wg-watchdog.sh
+  cat > /var/db/protonvpn-wg-peer.conf << 'EOF'
+PEER_PK=<server_pubkey>
+ENDPOINT=<server_ip>:51820
+ALLOWED_IPS=0.0.0.0/0,::/0
+EOF
+  chmod 600 /var/db/protonvpn-wg-peer.conf
+  date +%s > /var/db/protonvpn-wg-last-reset
+  echo '*/1 * * * * root /usr/local/bin/protonvpn-wg-watchdog.sh' \
+    > /etc/cron.d/protonvpn-wg-watchdog
+"
+```
+
+State files written to `/var/db/`:
+
+| File | Purpose |
+|------|---------|
+| `protonvpn-wg-peer.conf` | Current peer pubkey and endpoint (fallback when `wg show` has no peer) |
+| `protonvpn-wg-last-reset` | Timestamp of last peer reset — drives the 85s proactive reset cycle and 300s offline backoff |
+| `protonvpn-wg-down-since` | Timestamp when the GW first went down — drives the 300s backoff timer |
+
+Edit `WG_IFACE` and `GW_NAME` at the top of the script to match your tunnel (defaults: `tun_wg1` / `PROTONVPN_GW`).
+
 ---
 
 ### NordVPN WireGuard (NordLynx)
