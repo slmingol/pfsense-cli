@@ -22,7 +22,7 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 
 ✓ **DNS Management** - List, add, update, delete DNS Resolver entries  
 ✓ **DNS Aliases** - Add/delete aliases for host overrides  
-✓ **HAProxy Backends** - Create and manage HAProxy backend servers  
+✓ **HAProxy Backends** - Create and manage HAProxy backend servers; convert between IPs and hostnames (`use-dns`/`use-ip`); inspect raw JSON; apply and restart; clear resolver config  
 ✓ **HAProxy Frontend Routes** - Configure ACLs and actions for routing  
 ✓ **Complete Service Deployment** - One command to configure DNS + HAProxy  
 ✓ **Complete Service Teardown** - One command to remove DNS + HAProxy  
@@ -32,7 +32,7 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **Firewall Rule Management** - List, add, delete, and update pfSense firewall rules  
 ✓ **NAT Port Forward Management** - List, add, and delete inbound NAT port forward rules with optional auto-created firewall pass rule  
 ✓ **Bulk Operations** - Import multiple services, DNS entries, or HAProxy backends from a single JSON or CSV file with validation and dry-run support; export current config as a reimportable JSON snapshot  
-✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, renew, and check expiry (Nagios-compatible exit codes)  
+✓ **Certificate Management** - List certificates with expiry dates, import cert+key pairs, delete, renew, and check expiry (Nagios-compatible exit codes); schedule daily cron alerts via `cert-check-schedule`  
 ✓ **Wildcard Cert Renewal** - Renew Let's Encrypt wildcard certs via acme.sh DNS-01 challenge and import into pfSense in one step  
 ✓ **DHCP Static Mappings** - List, add, update, and delete DHCP static host-to-IP assignments across all interfaces  
 ✓ **Configuration History** - List and prune pfSense config history revisions; install a scheduled cron job for automatic pruning  
