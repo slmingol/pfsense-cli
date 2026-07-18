@@ -1,3 +1,10 @@
+## [1.3.1](https://github.com/slmingol/pfsense-cli/compare/v1.3.0...v1.3.1) (2026-07-18)
+
+
+### Bug Fixes
+
+* **help:** widen awk column to 28 for long config-history targets; wrap long wg-provision example; trim fw-alias-list padding ([84bdf55](https://github.com/slmingol/pfsense-cli/commit/84bdf55409ddaf37c9b3822725a939fad543845e))
+
 ## [1.3.0](https://github.com/slmingol/pfsense-cli/compare/v1.2.1...v1.3.0) (2026-07-16)
 
 
