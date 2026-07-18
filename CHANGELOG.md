@@ -1,3 +1,10 @@
+## [1.6.1](https://github.com/slmingol/pfsense-cli/compare/v1.6.0...v1.6.1) (2026-07-18)
+
+
+### Documentation
+
+* add ProtonVPN WireGuard watchdog section to README ([507e5da](https://github.com/slmingol/pfsense-cli/commit/507e5da9d55219665f6680257c4b924348eb4d5c))
+
 ## [1.6.0](https://github.com/slmingol/pfsense-cli/compare/v1.5.0...v1.6.0) (2026-07-18)
 
 
