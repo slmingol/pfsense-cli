@@ -1,3 +1,10 @@
+## [1.6.2](https://github.com/slmingol/pfsense-cli/compare/v1.6.1...v1.6.2) (2026-07-18)
+
+
+### Documentation
+
+* complete Scripts listing in Documentation section ([aa3a72d](https://github.com/slmingol/pfsense-cli/commit/aa3a72dcfc5e57966fd8c5baadedb9fc6b90618a))
+
 ## [1.6.1](https://github.com/slmingol/pfsense-cli/compare/v1.6.0...v1.6.1) (2026-07-18)
 
 
