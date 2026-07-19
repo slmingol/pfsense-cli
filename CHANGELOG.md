@@ -1,3 +1,10 @@
+## [1.6.3](https://github.com/slmingol/pfsense-cli/compare/v1.6.2...v1.6.3) (2026-07-19)
+
+
+### Bug Fixes
+
+* add continue-on-error to delete-workflow-runs steps ([5f01242](https://github.com/slmingol/pfsense-cli/commit/5f01242859a1bb952dc508ccf44ff96cae0b3a39))
+
 ## [1.6.2](https://github.com/slmingol/pfsense-cli/compare/v1.6.1...v1.6.2) (2026-07-18)
 
 
