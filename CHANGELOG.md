@@ -1,3 +1,15 @@
+## [1.7.0](https://github.com/slmingol/pfsense-cli/compare/v1.6.3...v1.7.0) (2026-07-23)
+
+
+### Features
+
+* add haproxy:audit command ([91f6c05](https://github.com/slmingol/pfsense-cli/commit/91f6c052c708eee8755495582635b36c72487f1a))
+
+
+### Bug Fixes
+
+* raise haproxy:audit shared-host threshold from 2 to 3 aliases ([ecd386a](https://github.com/slmingol/pfsense-cli/commit/ecd386ad8d614eef93ed3e232df282cb4615ff81))
+
 ## [1.6.3](https://github.com/slmingol/pfsense-cli/compare/v1.6.2...v1.6.3) (2026-07-19)
 
 
