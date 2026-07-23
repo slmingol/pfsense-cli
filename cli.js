@@ -9,7 +9,7 @@ process.emitWarning = (warning, ...args) => {
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy, auditBackends } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule,
@@ -351,6 +351,19 @@ program
   .action(async (options) => {
     try {
       await disableBackendResolver({ apply: options.apply, name: options.name });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Audit HAProxy backends for hostname risk (catch-all hosts, reload-vulnerable hostnames)
+program
+  .command('haproxy:audit')
+  .description('Audit HAProxy backend server addresses: flags shared hostnames (HIGH RISK) and service hostnames (reload risk)')
+  .action(async () => {
+    try {
+      await auditBackends();
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
