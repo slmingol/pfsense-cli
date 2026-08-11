@@ -20,7 +20,7 @@ const { listCerts, importCert, deleteCert, renewCert, checkCerts } = require('./
 const { listStaticMappings, addStaticMapping, updateStaticMapping, deleteStaticMapping } = require('./lib/dhcp');
 const { showOptics } = require('./lib/optics');
 const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
-const { backupStatus, backupNow, backupInstall, writeUsbRecovery } = require('./lib/backup');
+const { backupStatus, backupNow, backupInstall, writeUsbRecovery, backupCachePkgs } = require('./lib/backup');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -1061,6 +1061,19 @@ program
   .action(async (options) => {
     try {
       await writeUsbRecovery({ usbDev: options.usbDev, keepLast: options.keepLast, schedule: options.schedule });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('backup:cache-pkgs')
+  .description('Download RESTAPI pkg and rsync to USB pkgs/ for offline recovery')
+  .option('-d, --usb-dev <dev>', 'USB partition device (default: da0s1)', 'da0s1')
+  .action(async (options) => {
+    try {
+      await backupCachePkgs({ usbDev: options.usbDev });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

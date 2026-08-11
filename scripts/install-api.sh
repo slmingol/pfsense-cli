@@ -1,80 +1,98 @@
 #!/bin/sh
-# pfSense API Package Installation Helper
-# Run this on your pfSense box to install the API package
+# pfSense RESTAPI Package Installer
+# Run on pfSense (SSH or console). Checks USB cache first, falls back to GitHub.
+#
+# USB cache location: /mnt/usb_backup/pkgs/
+# Pre-populate with: make backup-usb-cache-pkgs (from pfsense-cli on management host)
+
+USB_MOUNT="${USB_MOUNT:-/mnt/usb_backup}"
 
 echo "=========================================="
-echo "pfSense API Package Installer"
+echo "pfSense RESTAPI Package Installer"
 echo "=========================================="
 echo ""
 
-# Check pfSense version
 PFSENSE_VERSION=$(cat /etc/version)
-echo "Detected pfSense version: $PFSENSE_VERSION"
-echo ""
-
-# Determine major version for package selection
 MAJOR_VERSION=$(echo $PFSENSE_VERSION | cut -d. -f1-2)
-echo "Using package for version: $MAJOR_VERSION"
-echo ""
+PKG_FILE="pfSense-${MAJOR_VERSION}-pkg-RESTAPI.pkg"
 
-# Test internet connectivity
-echo "Testing connectivity to GitHub..."
-if ! ping -c 2 github.com > /dev/null 2>&1; then
-    echo "ERROR: Cannot reach github.com"
-    echo "Please check your internet connection and firewall rules"
-    exit 1
-fi
-echo "✓ GitHub is reachable"
+echo "pfSense version : $PFSENSE_VERSION"
+echo "Package file    : $PKG_FILE"
 echo ""
 
 # Bootstrap pkg if needed
-echo "Checking pkg..."
 if ! which pkg > /dev/null 2>&1; then
     echo "Bootstrapping pkg..."
     /usr/sbin/pkg bootstrap -f
 fi
-echo "✓ pkg is available"
-echo ""
 
-# List of versions to try (from newest to oldest)
+# ---------------------------------------------------------------------------
+# Step 1: check USB cache
+# ---------------------------------------------------------------------------
+
+LOCAL_PKG="${USB_MOUNT}/pkgs/${PKG_FILE}"
+
+if [ -f "${LOCAL_PKG}" ]; then
+    echo "Found cached package: ${LOCAL_PKG}"
+    echo "Installing from USB cache (no internet required)..."
+    echo ""
+    if pkg install -y "${LOCAL_PKG}"; then
+        echo ""
+        echo "✓ Installed from USB cache."
+        /etc/rc.restart_webgui
+        echo ""
+        echo "Next steps:"
+        echo "  1. System > API — enable API"
+        echo "  2. Create API credentials"
+        echo "  3. make test-api (from pfsense-cli on management host)"
+        echo ""
+        exit 0
+    else
+        echo "✗ Install from cache failed — trying GitHub..."
+        echo ""
+    fi
+else
+    echo "No USB cache found at ${LOCAL_PKG}"
+    echo "Trying GitHub..."
+    echo ""
+fi
+
+# ---------------------------------------------------------------------------
+# Step 2: fetch from GitHub
+# ---------------------------------------------------------------------------
+
+if ! ping -c 2 github.com > /dev/null 2>&1; then
+    echo "=========================================="
+    echo "ERROR: No USB cache and cannot reach GitHub"
+    echo "=========================================="
+    echo ""
+    echo "Recovery options:"
+    echo "  A) Restore internet (WAN) and re-run this script"
+    echo "  B) Pre-populate USB cache from management host:"
+    echo "       make backup-usb-cache-pkgs"
+    echo "     then re-run this script"
+    echo ""
+    exit 1
+fi
+
 VERSIONS="v2.7.3 v2.7.2 v2.7.1 v2.7.0"
-PKG_FILE="pfSense-${MAJOR_VERSION}-pkg-RESTAPI.pkg"
-
-echo "Attempting to download and install RESTAPI package..."
-echo ""
 
 for VERSION in $VERSIONS; do
     URL="https://github.com/pfrest/pfSense-pkg-RESTAPI/releases/download/${VERSION}/${PKG_FILE}"
-    
-    echo "Trying version $VERSION..."
-    echo "URL: $URL"
-    
-    # Try to download
+    echo "Trying $VERSION..."
     if fetch -o /tmp/${PKG_FILE} "$URL" 2>/dev/null; then
-        echo "✓ Downloaded successfully!"
-        echo ""
-        echo "Installing package..."
-        
+        echo "✓ Downloaded."
         if pkg install -y /tmp/${PKG_FILE}; then
             echo ""
-            echo "✓ Package installed successfully!"
-            echo ""
-            echo "Restarting web server..."
+            echo "✓ Installed from GitHub."
             /etc/rc.restart_webgui
             echo ""
-            echo "=========================================="
-            echo "Installation complete!"
-            echo "=========================================="
-            echo ""
-            echo "Next steps:"
-            echo "1. Go to System > API in pfSense web interface"
-            echo "2. Enable the API"
-            echo "3. Create API credentials"
-            echo "4. Test with: make test-api"
+            echo "Tip: cache this for offline use:"
+            echo "  make backup-usb-cache-pkgs (from pfsense-cli on management host)"
             echo ""
             exit 0
         else
-            echo "✗ Installation failed"
+            echo "✗ Install failed"
             rm -f /tmp/${PKG_FILE}
         fi
     else
@@ -84,13 +102,12 @@ for VERSION in $VERSIONS; do
 done
 
 echo "=========================================="
-echo "Automatic installation failed"
+echo "Installation failed — all versions tried"
 echo "=========================================="
 echo ""
-echo "Please try manual installation:"
-echo "1. Visit: https://github.com/pfrest/pfSense-pkg-RESTAPI/releases"
-echo "2. Download the package for pfSense $MAJOR_VERSION"
-echo "3. Upload to pfSense and install with:"
-echo "   pkg install -y /path/to/package.pkg"
+echo "Manual fallback:"
+echo "  1. Visit https://github.com/pfrest/pfSense-pkg-RESTAPI/releases"
+echo "  2. Download pfSense-${MAJOR_VERSION}-pkg-RESTAPI.pkg"
+echo "  3. pkg install -y /path/to/package.pkg"
 echo ""
 exit 1
