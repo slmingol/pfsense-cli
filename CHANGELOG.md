@@ -1,3 +1,10 @@
+## [1.8.0](https://github.com/slmingol/pfsense-cli/compare/v1.7.0...v1.8.0) (2026-08-11)
+
+
+### Features
+
+* USB config backup — deploy script + cron via API ([d9fa723](https://github.com/slmingol/pfsense-cli/commit/d9fa7239e2943713d6bb8360428352069f181cc9))
+
 ## [1.7.0](https://github.com/slmingol/pfsense-cli/compare/v1.6.3...v1.7.0) (2026-07-23)
 
 
