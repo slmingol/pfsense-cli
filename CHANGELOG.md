@@ -1,3 +1,10 @@
+## [1.8.1](https://github.com/slmingol/pfsense-cli/compare/v1.8.0...v1.8.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* chunked script write to stay under 1024-char command_prompt limit ([3acaebf](https://github.com/slmingol/pfsense-cli/commit/3acaebfc16b003f0cfc68e99436edcf6cce730ad))
+
 ## [1.8.0](https://github.com/slmingol/pfsense-cli/compare/v1.7.0...v1.8.0) (2026-08-11)
 
 
