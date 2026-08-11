@@ -1,3 +1,10 @@
+## [1.9.3](https://github.com/slmingol/pfsense-cli/compare/v1.9.2...v1.9.3) (2026-08-11)
+
+
+### Documentation
+
+* add backup architecture summary + quick-reference to RECOVERY.md ([94bd5c0](https://github.com/slmingol/pfsense-cli/commit/94bd5c0c54191df08d69957b2c5dc8af836e2612))
+
 ## [1.9.2](https://github.com/slmingol/pfsense-cli/compare/v1.9.1...v1.9.2) (2026-08-11)
 
 
