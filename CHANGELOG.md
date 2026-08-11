@@ -1,3 +1,10 @@
+## [1.9.2](https://github.com/slmingol/pfsense-cli/compare/v1.9.1...v1.9.2) (2026-08-11)
+
+
+### Documentation
+
+* add rsync to RECOVERY.md package list (pkg install, not GUI) ([5c79b96](https://github.com/slmingol/pfsense-cli/commit/5c79b9627ac0d2dc061683b57ea02b025cf951f7))
+
 ## [1.9.1](https://github.com/slmingol/pfsense-cli/compare/v1.9.0...v1.9.1) (2026-08-11)
 
 
