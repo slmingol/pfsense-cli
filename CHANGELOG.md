@@ -1,3 +1,10 @@
+## [1.10.0](https://github.com/slmingol/pfsense-cli/compare/v1.9.3...v1.10.0) (2026-08-11)
+
+
+### Features
+
+* offline package cache for internet-down recovery ([2f5bb57](https://github.com/slmingol/pfsense-cli/commit/2f5bb5788c44313dc16e279d06eb8757d6d7761d))
+
 ## [1.9.3](https://github.com/slmingol/pfsense-cli/compare/v1.9.2...v1.9.3) (2026-08-11)
 
 
