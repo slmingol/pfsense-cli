@@ -1,3 +1,10 @@
+## [1.10.1](https://github.com/slmingol/pfsense-cli/compare/v1.10.0...v1.10.1) (2026-08-11)
+
+
+### Bug Fixes
+
+* use full pfSense version string for RESTAPI package filename ([efaad24](https://github.com/slmingol/pfsense-cli/commit/efaad245acba10c2306175485b26245c8aabff8e))
+
 ## [1.10.0](https://github.com/slmingol/pfsense-cli/compare/v1.9.3...v1.10.0) (2026-08-11)
 
 
