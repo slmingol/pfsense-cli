@@ -935,9 +935,26 @@ make backup-usb-status
 
 **How it works:**
 
-1. `backup-usb-install` mounts `/dev/USB_DEV` at `/mnt/usb_backup`, writes the script to `/mnt/usb_backup/backup.sh`, and installs a cron job via the pfSense RESTAPI v2 cron endpoint (stored in `config.xml`). Falls back to `/etc/cron.d/` if the cron API is unavailable.
+1. `backup-usb-install` mounts `/dev/USB_DEV` at `/mnt/usb_backup`, writes the backup script, `RECOVERY.md`, and `install-api.sh` to the USB root, then installs a cron job via the pfSense RESTAPI v2 cron endpoint (stored in `config.xml`). Falls back to `/etc/cron.d/` if the cron API is unavailable.
 2. The cron job runs `backup.sh` on pfSense, copies `/cf/conf/config.xml` to `/mnt/usb_backup/pfsense-backups/config-<timestamp>.xml`, and rotates old files beyond `KEEP_LAST`.
-3. The script is stored on the USB so it survives pfSense reinstalls — re-run `backup-usb-install` after recovery to restore the cron entry.
+3. All recovery tools are on the USB itself — after reinstall, plug in the USB and follow `RECOVERY.md`. Re-run `backup-usb-install` to restore the cron entry.
+
+**USB root after install:**
+
+```
+/mnt/usb_backup/
+  RECOVERY.md           — step-by-step reinstall recovery guide
+  backup.sh             — hourly backup script
+  install-api.sh        — pfSense RESTAPI package installer
+  pfsense-backups/      — config snapshots
+    config-<ts>.xml
+```
+
+**Refresh recovery files only** (if README or install-api.sh changed):
+
+```bash
+make backup-usb-readme USB_DEV=da0s1 KEEP_LAST=90
+```
 
 **USB device detection:** Use `make backup-usb-status` to see which `/dev/da*` devices are present. On most systems the USB drive is `da0` and the first partition is `da0s1` (FAT32). Adjust `USB_DEV` if your setup differs.
 
@@ -1105,6 +1122,7 @@ make config-history-prune    # Prune old config revisions (OLDER_THAN=<days> or 
 make backup-usb-status       # Check USB device, mount state, and backup files on pfSense
 make backup-usb-now          # Run a USB config backup immediately ([USB_DEV=da0s1])
 make backup-usb-install      # Deploy backup script and install cron ([USB_DEV=da0s1] [KEEP_LAST=30])
+make backup-usb-readme       # Refresh RECOVERY.md and install-api.sh on the USB
 make optics-show             # Show SFP+ transceiver DDM diagnostics ([IFACE=ix0])
 make clean              # Clean up Docker resources
 ```

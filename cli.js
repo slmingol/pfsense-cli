@@ -20,7 +20,7 @@ const { listCerts, importCert, deleteCert, renewCert, checkCerts } = require('./
 const { listStaticMappings, addStaticMapping, updateStaticMapping, deleteStaticMapping } = require('./lib/dhcp');
 const { showOptics } = require('./lib/optics');
 const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
-const { backupStatus, backupNow, backupInstall } = require('./lib/backup');
+const { backupStatus, backupNow, backupInstall, writeUsbRecovery } = require('./lib/backup');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -1046,6 +1046,21 @@ program
   .action(async (options) => {
     try {
       await backupInstall({ usbDev: options.usbDev, keepLast: options.keepLast, schedule: options.schedule });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('backup:readme')
+  .description('Write/refresh RECOVERY.md and install-api.sh on the USB (USB must already be mounted)')
+  .option('-d, --usb-dev <dev>',   'USB partition device (default: da0s1)', 'da0s1')
+  .option('-k, --keep-last <n>',   'Retention count to embed in README (default: 30)', '30')
+  .option('-s, --schedule <cron>', 'Schedule to embed in README (default: "0 * * * *")', '0 * * * *')
+  .action(async (options) => {
+    try {
+      await writeUsbRecovery({ usbDev: options.usbDev, keepLast: options.keepLast, schedule: options.schedule });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

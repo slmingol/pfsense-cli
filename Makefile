@@ -14,7 +14,7 @@ export BUILDKIT_PROGRESS = quiet
 	cert-list cert-import cert-delete cert-renew cert-check cert-check-schedule cert-check-unschedule cert-check-cron-status cert-renew-wildcard \
 	config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status \
 	optics-show dhcp-list dhcp-add dhcp-update dhcp-delete \
-	backup-usb-status backup-usb-now backup-usb-install
+	backup-usb-status backup-usb-now backup-usb-install backup-usb-readme
 .DEFAULT_GOAL := help
 
 HOST_BUB         ?= docker-host-01-svcs
@@ -673,6 +673,12 @@ backup-usb-now: ## Run a config backup to USB immediately ([USB_DEV=da0s1] [KEEP
 
 backup-usb-install: ## Deploy backup script to USB and install cron on pfSense ([USB_DEV=da0s1] [KEEP_LAST=30] [BACKUP_SCHEDULE="0 * * * *"])
 	@node cli.js backup:install \
+	  --usb-dev "$(USB_DEV)" \
+	  --keep-last "$(KEEP_LAST)" \
+	  --schedule "$(BACKUP_SCHEDULE)"
+
+backup-usb-readme: ## Refresh RECOVERY.md and install-api.sh on the USB ([USB_DEV=da0s1] [KEEP_LAST=30] [BACKUP_SCHEDULE="0 * * * *"])
+	@node cli.js backup:readme \
 	  --usb-dev "$(USB_DEV)" \
 	  --keep-last "$(KEEP_LAST)" \
 	  --schedule "$(BACKUP_SCHEDULE)"
