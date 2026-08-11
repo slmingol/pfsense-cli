@@ -20,6 +20,7 @@ const { listCerts, importCert, deleteCert, renewCert, checkCerts } = require('./
 const { listStaticMappings, addStaticMapping, updateStaticMapping, deleteStaticMapping } = require('./lib/dhcp');
 const { showOptics } = require('./lib/optics');
 const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
+const { backupStatus, backupNow, backupInstall } = require('./lib/backup');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -999,6 +1000,52 @@ program
         olderThanDays: options.olderThan  ? parseInt(options.olderThan, 10)  : undefined,
         keepLast:      options.keepLast   ? parseInt(options.keepLast, 10)   : undefined,
       });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// USB backup commands
+// ---------------------------------------------------------------------------
+
+program
+  .command('backup:status')
+  .description('Show USB backup status: device, mount, backup files, and cron entry')
+  .option('-d, --usb-dev <dev>', 'USB partition device (default: da0s1)', 'da0s1')
+  .action(async (options) => {
+    try {
+      await backupStatus({ usbDev: options.usbDev });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('backup:now')
+  .description('Run a USB backup immediately')
+  .option('-d, --usb-dev <dev>',    'USB partition device (default: da0s1)', 'da0s1')
+  .option('-k, --keep-last <n>',    'Number of backups to retain (default: 30)', '30')
+  .action(async (options) => {
+    try {
+      await backupNow({ usbDev: options.usbDev, keepLast: options.keepLast });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+program
+  .command('backup:install')
+  .description('Deploy backup script to USB and install cron job on pfSense')
+  .option('-d, --usb-dev <dev>',      'USB partition device (default: da0s1)', 'da0s1')
+  .option('-k, --keep-last <n>',      'Number of backups to retain (default: 30)', '30')
+  .option('-s, --schedule <cron>',    'Cron schedule (default: "0 * * * *" — hourly)', '0 * * * *')
+  .action(async (options) => {
+    try {
+      await backupInstall({ usbDev: options.usbDev, keepLast: options.keepLast, schedule: options.schedule });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

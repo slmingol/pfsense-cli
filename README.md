@@ -906,6 +906,49 @@ make config-history-unschedule
 
 Prune output is appended to `/tmp/pfsense-config-prune.log` by default (override with `LOG_FILE=`). The script sources `.env` automatically, so no credential setup is needed beyond the existing `.env` file.
 
+### USB Config Backup
+
+Backs up pfSense `config.xml` to a USB drive attached to the router. The backup script (`scripts/backup-config-to-usb.sh`) runs on pfSense and is stored on the USB itself so it persists across pfSense reinstalls.
+
+**First-time setup (or after reinstall/recovery):**
+
+```bash
+# Check what USB device is visible and whether it's mounted
+make backup-usb-status
+
+# Deploy backup script to USB and install hourly cron on pfSense
+make backup-usb-install USB_DEV=da0s1
+
+# Custom schedule (every 6 hours) and retention (60 backups)
+make backup-usb-install USB_DEV=da0s1 KEEP_LAST=60 BACKUP_SCHEDULE="0 */6 * * *"
+```
+
+**Day-to-day:**
+
+```bash
+# Run a backup now
+make backup-usb-now
+
+# Check backup status, recent files, and cron entry
+make backup-usb-status
+```
+
+**How it works:**
+
+1. `backup-usb-install` mounts `/dev/USB_DEV` at `/mnt/usb_backup`, writes the script to `/mnt/usb_backup/backup.sh`, and installs a cron job via the pfSense RESTAPI v2 cron endpoint (stored in `config.xml`). Falls back to `/etc/cron.d/` if the cron API is unavailable.
+2. The cron job runs `backup.sh` on pfSense, copies `/cf/conf/config.xml` to `/mnt/usb_backup/pfsense-backups/config-<timestamp>.xml`, and rotates old files beyond `KEEP_LAST`.
+3. The script is stored on the USB so it survives pfSense reinstalls — re-run `backup-usb-install` after recovery to restore the cron entry.
+
+**USB device detection:** Use `make backup-usb-status` to see which `/dev/da*` devices are present. On most systems the USB drive is `da0` and the first partition is `da0s1` (FAT32). Adjust `USB_DEV` if your setup differs.
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `USB_DEV` | `da0s1` | USB partition device node |
+| `KEEP_LAST` | `30` | Number of backup files to retain |
+| `BACKUP_SCHEDULE` | `0 * * * *` | Cron schedule (hourly) |
+
+Cron log: `/tmp/pfsense-usb-backup.log` on pfSense.
+
 ### SFP+ Optics Diagnostics
 
 Read transceiver DDM (Digital Diagnostic Monitoring) data from SFP+ interfaces via the pfSense diagnostics API. Useful for verifying signal levels and module health without SSH.
@@ -1059,6 +1102,9 @@ make cert-delete             # Delete a certificate (CERT_NAME= or CERT_REFID=)
 make cert-renew              # Renew an internally-generated certificate (CERT_NAME= or CERT_REFID=)
 make config-history          # List config history revisions ([LIMIT=N])
 make config-history-prune    # Prune old config revisions (OLDER_THAN=<days> or KEEP_LAST=<n>)
+make backup-usb-status       # Check USB device, mount state, and backup files on pfSense
+make backup-usb-now          # Run a USB config backup immediately ([USB_DEV=da0s1])
+make backup-usb-install      # Deploy backup script and install cron ([USB_DEV=da0s1] [KEEP_LAST=30])
 make optics-show             # Show SFP+ transceiver DDM diagnostics ([IFACE=ix0])
 make clean              # Clean up Docker resources
 ```
@@ -1071,6 +1117,7 @@ make clean              # Clean up Docker resources
 - **[renew-wildcard-cert.sh](scripts/renew-wildcard-cert.sh)** — renews a wildcard cert via acme.sh and imports it into pfSense. Used by `make cert-renew-wildcard`.
 - **[protonvpn-wg-watchdog.sh](scripts/protonvpn-wg-watchdog.sh)** — ProtonVPN WireGuard deadlock-prevention watchdog; runs on the pfSense router via cron. See [ProtonVPN watchdog](#protonvpn-watchdog-120s-deadlock-prevention).
 - **[nordvpn-wg-watchdog.sh](scripts/nordvpn-wg-watchdog.sh)** — NordVPN WireGuard watchdog with auto-recovery server rotation. See [NordVPN Watchdog](#watchdog-120s-deadlock-prevention--auto-recovery).
+- **[backup-config-to-usb.sh](scripts/backup-config-to-usb.sh)** — runs on pfSense; copies `config.xml` to the USB drive at `/mnt/usb_backup/pfsense-backups/`. Deployed and scheduled via `make backup-usb-install`. Stored on the USB so it survives reinstalls.
 - **[install-api.sh](scripts/install-api.sh)** — run on the pfSense box to install the REST API package for the correct pfSense version.
 - **[migrate-ks-to-alias.js](scripts/migrate-ks-to-alias.js)** — one-shot migration: replaces per-IP kill-switch rules with a single alias-based rule pair. Run once after switching to `KS_ALIAS=` mode.
 - **[INSTALL_API.md](docs/INSTALL_API.md)** — pfSense REST API package installation

@@ -13,7 +13,8 @@ export BUILDKIT_PROGRESS = quiet
 	bulk-import bulk-export \
 	cert-list cert-import cert-delete cert-renew cert-check cert-check-schedule cert-check-unschedule cert-check-cron-status cert-renew-wildcard \
 	config-history config-history-prune config-history-schedule config-history-unschedule config-history-cron-status \
-	optics-show dhcp-list dhcp-add dhcp-update dhcp-delete
+	optics-show dhcp-list dhcp-add dhcp-update dhcp-delete \
+	backup-usb-status backup-usb-now backup-usb-install
 .DEFAULT_GOAL := help
 
 HOST_BUB         ?= docker-host-01-svcs
@@ -657,6 +658,24 @@ config-history-unschedule: ## Remove the config history prune cron job
 
 config-history-cron-status: ## Show current config history prune cron job (if any)
 	@crontab -l 2>/dev/null | grep 'prune-config-history' || echo "(no config history prune cron installed)"
+
+##@ USB Backup
+
+USB_DEV         ?= da0s1
+KEEP_LAST       ?= 30
+BACKUP_SCHEDULE ?= 0 * * * *
+
+backup-usb-status: ## Check USB device, mount state, and existing backup files on pfSense
+	@node cli.js backup:status --usb-dev "$(USB_DEV)"
+
+backup-usb-now: ## Run a config backup to USB immediately ([USB_DEV=da0s1] [KEEP_LAST=30])
+	@node cli.js backup:now --usb-dev "$(USB_DEV)" --keep-last "$(KEEP_LAST)"
+
+backup-usb-install: ## Deploy backup script to USB and install cron on pfSense ([USB_DEV=da0s1] [KEEP_LAST=30] [BACKUP_SCHEDULE="0 * * * *"])
+	@node cli.js backup:install \
+	  --usb-dev "$(USB_DEV)" \
+	  --keep-last "$(KEEP_LAST)" \
+	  --schedule "$(BACKUP_SCHEDULE)"
 
 ##@ Infrastructure
 
