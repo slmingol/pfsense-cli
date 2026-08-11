@@ -1,3 +1,10 @@
+## [1.9.0](https://github.com/slmingol/pfsense-cli/compare/v1.8.1...v1.9.0) (2026-08-11)
+
+
+### Features
+
+* write RECOVERY.md + install-api.sh to USB during install ([4871c5b](https://github.com/slmingol/pfsense-cli/commit/4871c5b9ff5b25ef284a4087556abf2f0342ddcb))
+
 ## [1.8.1](https://github.com/slmingol/pfsense-cli/compare/v1.8.0...v1.8.1) (2026-08-11)
 
 
