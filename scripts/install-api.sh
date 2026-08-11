@@ -12,9 +12,8 @@ echo "pfSense RESTAPI Package Installer"
 echo "=========================================="
 echo ""
 
-PFSENSE_VERSION=$(cat /etc/version)
-MAJOR_VERSION=$(echo $PFSENSE_VERSION | cut -d. -f1-2)
-PKG_FILE="pfSense-${MAJOR_VERSION}-pkg-RESTAPI.pkg"
+PFSENSE_VERSION=$(cat /etc/version | cut -d- -f1)
+PKG_FILE="pfSense-${PFSENSE_VERSION}-pkg-RESTAPI.pkg"
 
 echo "pfSense version : $PFSENSE_VERSION"
 echo "Package file    : $PKG_FILE"
@@ -75,12 +74,21 @@ if ! ping -c 2 github.com > /dev/null 2>&1; then
     exit 1
 fi
 
-VERSIONS="v2.7.3 v2.7.2 v2.7.1 v2.7.0"
+# Discover latest release tag from GitHub API
+LATEST_TAG=$(fetch -qo - 'https://api.github.com/repos/pfrest/pfSense-pkg-RESTAPI/releases?per_page=3' 2>/dev/null \
+    | grep -o '"tag_name":"[^"]*"' | head -1 | cut -d'"' -f4)
+if [ -n "$LATEST_TAG" ]; then
+    VERSIONS="$LATEST_TAG v2.10.0 v2.9.0 v2.8.4"
+else
+    VERSIONS="v2.10.0 v2.9.0 v2.8.4 v2.8.3"
+fi
+echo "Release tags to try: $VERSIONS"
+echo ""
 
 for VERSION in $VERSIONS; do
     URL="https://github.com/pfrest/pfSense-pkg-RESTAPI/releases/download/${VERSION}/${PKG_FILE}"
     echo "Trying $VERSION..."
-    if fetch -o /tmp/${PKG_FILE} "$URL" 2>/dev/null; then
+    if fetch -o /tmp/${PKG_FILE} "$URL" 2>/dev/null && [ -s /tmp/${PKG_FILE} ]; then
         echo "✓ Downloaded."
         if pkg install -y /tmp/${PKG_FILE}; then
             echo ""
