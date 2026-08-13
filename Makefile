@@ -212,6 +212,33 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 	fi
 	@node cli.js haproxy:delete --name $(NAME) 2>/dev/null
 
+haproxy-frontend-list: ## List HAProxy frontends (FILTER= optional)
+	@node cli.js haproxy:frontend-list $(if $(FILTER),--filter $(FILTER)) 2>/dev/null
+
+haproxy-frontend-add: ## Create HAProxy frontend (NAME= BIND= [MODE=http] [CERT=])
+	@if [ -z "$(NAME)" ] || [ -z "$(BIND)" ]; then \
+		echo "Error: NAME and BIND are required"; \
+		echo "Usage: make haproxy-frontend-add NAME=my-frontend BIND=0.0.0.0:443 [MODE=http] [CERT=my-cert]"; \
+		exit 1; \
+	fi
+	@node cli.js haproxy:frontend-add --name $(NAME) --bind $(BIND) $(if $(MODE),--mode $(MODE)) $(if $(CERT),--cert $(CERT)) 2>/dev/null
+
+haproxy-frontend-delete: ## Delete HAProxy frontend (NAME=)
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make haproxy-frontend-delete NAME=my-frontend"; \
+		exit 1; \
+	fi
+	@node cli.js haproxy:frontend-delete --name $(NAME) 2>/dev/null
+
+haproxy-frontend-cert: ## Assign/swap SSL cert on a frontend (NAME= CERT=)
+	@if [ -z "$(NAME)" ] || [ -z "$(CERT)" ]; then \
+		echo "Error: NAME and CERT are required"; \
+		echo "Usage: make haproxy-frontend-cert NAME=my-frontend CERT=my-wildcard-cert"; \
+		exit 1; \
+	fi
+	@node cli.js haproxy:frontend-cert --name $(NAME) --cert $(CERT) 2>/dev/null
+
 haproxy-use-dns: ## Dry-run by default: show which backend IPs would convert to .bub.lan hostnames (APPLY=true to apply, NAME= to scope)
 	@node cli.js haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
 

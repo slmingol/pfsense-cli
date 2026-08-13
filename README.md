@@ -263,6 +263,18 @@ make haproxy-add NAME=myapp SERVER=myapp.example.local PORT=8080
 # Delete a backend
 make haproxy-delete NAME=myapp
 
+# List frontends (bind address, mode, SSL cert)
+make haproxy-frontend-list
+
+# Create a frontend
+make haproxy-frontend-add NAME=HomePrivateServers BIND=0.0.0.0:443 MODE=http CERT=my-wildcard-cert
+
+# Delete a frontend
+make haproxy-frontend-delete NAME=HomePrivateServers
+
+# Assign or swap SSL cert on existing frontend
+make haproxy-frontend-cert NAME=HomePrivateServers CERT=my-wildcard-cert
+
 # Dry-run: show which backend addresses would be converted to .bub.lan hostnames
 make haproxy-use-dns
 

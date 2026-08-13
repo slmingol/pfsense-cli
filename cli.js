@@ -9,7 +9,7 @@ process.emitWarning = (warning, ...args) => {
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy, auditBackends } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy, auditBackends, listFrontends, addFrontend, deleteFrontend, assignFrontendCert } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule,
@@ -268,6 +268,50 @@ program
       console.error('Error:', error.message);
       process.exit(1);
     }
+  });
+
+// List frontends
+program
+  .command('haproxy:frontend-list')
+  .description('List HAProxy frontends with bind, mode, and SSL cert')
+  .option('-f, --filter <text>', 'Filter by name')
+  .action(async (options) => {
+    try { await listFrontends({ filter: options.filter }); }
+    catch (e) { console.error('Error:', e.message); process.exit(1); }
+  });
+
+// Add frontend
+program
+  .command('haproxy:frontend-add')
+  .description('Create a HAProxy frontend')
+  .requiredOption('-n, --name <name>', 'Frontend name')
+  .requiredOption('-b, --bind <address>', 'Bind address:port (e.g. 0.0.0.0:443)')
+  .option('-m, --mode <mode>', 'Mode: http or tcp', 'http')
+  .option('-c, --cert <name>', 'SSL certificate name or refid')
+  .action(async (options) => {
+    try { await addFrontend({ name: options.name, bind: options.bind, mode: options.mode, certName: options.cert }); }
+    catch (e) { console.error('Error:', e.message); process.exit(1); }
+  });
+
+// Delete frontend
+program
+  .command('haproxy:frontend-delete')
+  .description('Delete a HAProxy frontend')
+  .requiredOption('-n, --name <name>', 'Frontend name')
+  .action(async (options) => {
+    try { await deleteFrontend(options.name); }
+    catch (e) { console.error('Error:', e.message); process.exit(1); }
+  });
+
+// Assign/swap SSL cert on frontend
+program
+  .command('haproxy:frontend-cert')
+  .description('Assign or swap the SSL certificate on a HAProxy frontend')
+  .requiredOption('-n, --name <name>', 'Frontend name')
+  .requiredOption('-c, --cert <name>', 'Certificate name or refid')
+  .action(async (options) => {
+    try { await assignFrontendCert({ name: options.name, certName: options.cert }); }
+    catch (e) { console.error('Error:', e.message); process.exit(1); }
   });
 
 // Convert hostname-based backend addresses to static IPs
