@@ -23,6 +23,7 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 ✓ **DNS Management** - List, add, update, delete DNS Resolver entries  
 ✓ **DNS Aliases** - Add/delete aliases for host overrides  
 ✓ **HAProxy Backends** - Create and manage HAProxy backend servers; convert between IPs and hostnames (`use-dns`/`use-ip`); inspect raw JSON; apply and restart; clear resolver config  
+✓ **HAProxy Frontends** - Create, delete, and list frontends; assign or swap SSL certificates  
 ✓ **HAProxy Frontend Routes** - Configure ACLs and actions for routing  
 ✓ **Complete Service Deployment** - One command to configure DNS + HAProxy  
 ✓ **Complete Service Teardown** - One command to remove DNS + HAProxy  
@@ -721,6 +722,24 @@ services:
 
 The `UPDATER_PERIOD` setting is what resolves the peer renewal problem encountered with pfSense: Gluetun periodically pulls a fresh server list from the provider API and reconnects, eliminating the need for watchdog scripts or manual key rotation.
 
+### HAProxy Frontend Management
+
+Manage frontends (bind address, mode, SSL cert) directly:
+
+```bash
+# List frontends
+make haproxy-frontend-list
+
+# Create a frontend
+make haproxy-frontend-add NAME=HomePrivateServers BIND=0.0.0.0:443 MODE=http CERT=my-wildcard-cert
+
+# Delete a frontend
+make haproxy-frontend-delete NAME=HomePrivateServers
+
+# Assign or swap SSL cert on existing frontend
+make haproxy-frontend-cert NAME=HomePrivateServers CERT=my-wildcard-cert
+```
+
 ### HAProxy Frontend Routing
 
 Frontend routes connect hostnames to backends using ACLs and actions:
@@ -764,6 +783,14 @@ docker-compose run --rm pfsense-cli haproxy:add \
   --server-name myapp.example.local \
   --server-address myapp.example.local \
   --server-port 8080
+
+# HAProxy frontends
+docker-compose run --rm pfsense-cli haproxy:frontend-list
+docker-compose run --rm pfsense-cli haproxy:frontend-add \
+  --name HomePrivateServers --bind 0.0.0.0:443 --mode http --cert my-wildcard-cert
+docker-compose run --rm pfsense-cli haproxy:frontend-delete --name HomePrivateServers
+docker-compose run --rm pfsense-cli haproxy:frontend-cert \
+  --name HomePrivateServers --cert my-wildcard-cert
 
 # HAProxy frontend routes
 docker-compose run --rm pfsense-cli haproxy:route-add \
