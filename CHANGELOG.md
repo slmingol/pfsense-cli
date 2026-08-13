@@ -1,3 +1,10 @@
+## [1.11.0](https://github.com/slmingol/pfsense-cli/compare/v1.10.1...v1.11.0) (2026-08-13)
+
+
+### Features
+
+* HAProxy frontend management (list/add/delete/cert-swap) ([f972187](https://github.com/slmingol/pfsense-cli/commit/f97218751e07a81d343ff3848058acf13785672f)), closes [#7](https://github.com/slmingol/pfsense-cli/issues/7)
+
 ## [1.10.1](https://github.com/slmingol/pfsense-cli/compare/v1.10.0...v1.10.1) (2026-08-11)
 
 
