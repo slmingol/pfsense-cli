@@ -1,3 +1,20 @@
+## [1.12.0](https://github.com/slmingol/pfsense-cli/compare/v1.11.1...v1.12.0) (2026-08-23)
+
+
+### Features
+
+* HAProxy watchdog daemon for pfSense ([2ee7269](https://github.com/slmingol/pfsense-cli/commit/2ee72699b586a1ddb3d310ccaa9eb82a0361140b))
+
+
+### Bug Fixes
+
+* haproxy-inspect accepts pfSense frontend ACL name suffixes ([aaaeef2](https://github.com/slmingol/pfsense-cli/commit/aaaeef24ba0360557e58758cccf79287d05f2af2))
+
+
+### Documentation
+
+* document HAProxy watchdog daemon deployment and usage ([120a04f](https://github.com/slmingol/pfsense-cli/commit/120a04f4b652ee3fe707e1dadb2f972b4a33251a))
+
 ## [1.11.1](https://github.com/slmingol/pfsense-cli/compare/v1.11.0...v1.11.1) (2026-08-13)
 
 
