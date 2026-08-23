@@ -302,6 +302,32 @@ make haproxy-disable-resolver
 make haproxy-disable-resolver NAME=myapp APPLY=true
 ```
 
+#### HAProxy watchdog daemon
+
+HAProxy can enter a broken state after pfSense gateway events (e.g. WireGuard tunnel drop) trigger `rc.newwanip → restart_packages` — the rapid restart race leaves backends `UP` with 0 active servers, causing 503s on all proxied services. The watchdog daemon detects and self-heals this.
+
+Deploy to pfSense:
+
+```bash
+scp services/haproxy-watchdog/haproxy-watchdog.sh \
+    admin@pfsense-rtr1.bub.lan:/usr/local/etc/rc.d/haproxy-watchdog.sh
+scp services/haproxy-watchdog/haproxy-watchdog-loop.sh \
+    admin@pfsense-rtr1.bub.lan:/usr/local/libexec/haproxy-watchdog-loop.sh
+chmod +x /usr/local/etc/rc.d/haproxy-watchdog.sh \
+          /usr/local/libexec/haproxy-watchdog-loop.sh
+echo 'haproxy_watchdog_enable="YES"' >> /etc/rc.conf.local
+service haproxy-watchdog.sh start
+```
+
+The daemon runs every 60s. If any backend is `UP` with 0 active servers for >90s it does a hard `stop && start` of HAProxy and logs to `/var/log/haproxy-watchdog.log`. Starts at boot, survives pfSense upgrades (stored in `/usr/local`).
+
+```bash
+# On pfSense — manage the watchdog
+service haproxy-watchdog.sh status
+service haproxy-watchdog.sh restart
+service haproxy-watchdog.sh stop
+```
+
 ### WireGuard
 
 #### Generic provisioning (`wg:provision`)
