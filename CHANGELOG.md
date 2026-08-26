@@ -1,3 +1,10 @@
+## [1.12.1](https://github.com/slmingol/pfsense-cli/compare/v1.12.0...v1.12.1) (2026-08-26)
+
+
+### Bug Fixes
+
+* watchdog UP+0-server detection uses consecutive checks not downtime field ([1072ab7](https://github.com/slmingol/pfsense-cli/commit/1072ab7a5dacf45ec06362e32778b8957e15fb2b))
+
 ## [1.12.0](https://github.com/slmingol/pfsense-cli/compare/v1.11.1...v1.12.0) (2026-08-23)
 
 
