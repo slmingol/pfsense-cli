@@ -1,3 +1,10 @@
+## [1.13.1](https://github.com/slmingol/pfsense-cli/compare/v1.13.0...v1.13.1) (2026-08-29)
+
+
+### Bug Fixes
+
+* use aliased destructuring for unused nordvpn params ([4bc08e4](https://github.com/slmingol/pfsense-cli/commit/4bc08e43fa956cc20c3c777b5963539da56617ec))
+
 ## [1.13.0](https://github.com/slmingol/pfsense-cli/compare/v1.12.2...v1.13.0) (2026-08-29)
 
 
