@@ -946,7 +946,7 @@ program
     try {
       await listCerts({
         filter:      options.filter,
-        expiringDays: options.expiring != null ? parseInt(options.expiring, 10) : undefined,
+        expiringDays: options.expiring !== null ? parseInt(options.expiring, 10) : undefined,
       });
     } catch (error) {
       console.error('Error:', error.message);
