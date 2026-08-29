@@ -1,3 +1,10 @@
+## [1.12.2](https://github.com/slmingol/pfsense-cli/compare/v1.12.1...v1.12.2) (2026-08-29)
+
+
+### Bug Fixes
+
+* cert listCerts sorts a copy instead of mutating API response data ([6df9af5](https://github.com/slmingol/pfsense-cli/commit/6df9af5d7199d26ef34cbdc410dacf7e9e611403))
+
 ## [1.12.1](https://github.com/slmingol/pfsense-cli/compare/v1.12.0...v1.12.1) (2026-08-26)
 
 
