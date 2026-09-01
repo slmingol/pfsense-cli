@@ -1058,7 +1058,7 @@ Output includes module type, vendor/PN/SN, TX/RX power (dBm), temperature, volta
 
 ### Package Update Checker
 
-Deploys `pkg_check.php` to pfSense and installs a daily cron job that checks for available package updates and notifies via Slack (configured in pfSense's notification settings under `System > Advanced > Notifications`).
+Deploys `pkg_check.php` to pfSense and installs a daily cron job that checks for available package updates and sends a notification when updates are found.
 
 ```bash
 # Deploy script and install cron job (daily at 07:30, default)
@@ -1074,7 +1074,19 @@ What it does:
 2. Installs a cron job (`30 7 * * *` by default) via the pfSense REST API v2, with automatic fallback to `cron.inc` PHP for older API versions
 3. Removes any pre-existing `pkg_check.php` cron entry before re-adding (idempotent)
 
-The script uses pfSense's built-in `notify_via_slack()` — no external webhook configuration needed beyond the existing pfSense Slack notification settings.
+#### Notification methods
+
+The script uses pfSense's built-in notification functions — all rely on credentials configured under `System > Advanced > Notifications`. Edit `scripts/pkg_check.php` to choose the method(s) before deploying:
+
+| Method | Function | Notes |
+|--------|----------|-------|
+| Slack | `notify_via_slack($msg)` | **Default** — uses pfSense's configured Slack webhook |
+| All configured targets | `notify_all_remote($msg)` | Sends to every enabled target (email, Pushover, Slack, etc.) |
+| SMTP / email | `notify_via_smtp($msg)` | Uses pfSense's SMTP settings |
+| Pushover | `notify_via_pushover($msg)` | Requires Pushover credentials in pfSense |
+| Telegram | `notify_via_telegram($msg)` | Requires Telegram bot token in pfSense |
+
+To switch methods, uncomment the desired line(s) and comment out `notify_via_slack`, then re-run `pkgcheck:install` to redeploy.
 
 > **Requirement**: `diagnostics/command_prompt` must be enabled in pfSense API settings (`System > API`).
 
