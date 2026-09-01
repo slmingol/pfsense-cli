@@ -1,3 +1,10 @@
+## [1.14.6](https://github.com/slmingol/pfsense-cli/compare/v1.14.5...v1.14.6) (2026-09-01)
+
+
+### Documentation
+
+* add collapsible sections to README to reduce visible length ([e0ea4fc](https://github.com/slmingol/pfsense-cli/commit/e0ea4fccec819bdab08bdec7a7a783c76ef68b7e))
+
 ## [1.14.5](https://github.com/slmingol/pfsense-cli/compare/v1.14.4...v1.14.5) (2026-09-01)
 
 
