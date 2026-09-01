@@ -1090,6 +1090,11 @@ To switch methods, uncomment the desired line(s) and comment out `notify_via_sla
 
 > **Requirement**: `diagnostics/command_prompt` must be enabled in pfSense API settings (`System > API`).
 
+#### References
+
+- [luckman212 — pfSense package update check gist](https://gist.github.com/luckman212/5e69ecf04e000ace47eb8f760b71e160)
+- [Netgate forum — Auto update check: checks for updates to base system, packages, and sends email alerts](https://forum.netgate.com/topic/137707/auto-update-check-checks-for-updates-to-base-system-packages-and-sends-email-alerts)
+
 ## Architecture
 
 ### DNS Strategy
