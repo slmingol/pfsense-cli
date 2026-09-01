@@ -1,3 +1,10 @@
+## [1.14.2](https://github.com/slmingol/pfsense-cli/compare/v1.14.1...v1.14.2) (2026-09-01)
+
+
+### Documentation
+
+* expand pkgcheck notification methods in README ([31d961d](https://github.com/slmingol/pfsense-cli/commit/31d961dc6625a70665463ec4a3bb11683c81f513))
+
 ## [1.14.1](https://github.com/slmingol/pfsense-cli/compare/v1.14.0...v1.14.1) (2026-09-01)
 
 
