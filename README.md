@@ -428,7 +428,8 @@ make wg-teardown TUNNEL=MyVPN02 IFACE=MYVPN2
 | `LAN_SUBNET` | `192.168.7.0/24` | LAN subnet for outbound NAT |
 | `LAN` | `lan` | pfSense internal interface name for LAN |
 
-#### ProtonVPN watchdog (120s deadlock prevention)
+<details>
+<summary><strong>ProtonVPN watchdog (120s deadlock prevention)</strong></summary>
 
 ProtonVPN WireGuard hits the same REKEY_AFTER_TIME=120s simultaneous-initiation deadlock as NordVPN. `scripts/protonvpn-wg-watchdog.sh` prevents this by proactively resetting the peer every 85 seconds when the gateway is online, and silencing initiations (removing the peer) during a 300-second backoff when offline. Unlike the NordVPN watchdog, there is no server rotation escalation — ProtonVPN uses a stable server per account.
 
@@ -459,13 +460,16 @@ State files written to `/var/db/`:
 
 Edit `WG_IFACE` and `GW_NAME` at the top of the script to match your tunnel (defaults: `tun_wg1` / `PROTONVPN_GW`).
 
+</details>
+
 ---
 
 ### NordVPN WireGuard (NordLynx)
 
 NordVPN WireGuard uses an account-wide private key (nordlynx_private_key) shared across all servers. All servers share the same public key. The NordVPN API is used to fetch credentials and find the lowest-load server.
 
-#### Initial setup
+<details>
+<summary><strong>Initial setup</strong></summary>
 
 ```bash
 # 1. Fetch your nordlynx_private_key and VPN credentials
@@ -499,6 +503,8 @@ make wg-provision \
 
 > **Gateway derivation for NordVPN**: NordVPN's WireGuard tunnel address is `10.5.0.2/32`. Omit the `DNS` field from the conf — `wg:provision` derives the gateway as `address - 1 = 10.5.0.1`. If DNS is present it is used as the gateway instead (wrong for NordVPN).
 
+</details>
+
 #### Server rotation
 
 Fetches the lowest-load US WireGuard server from the NordVPN API and updates the peer endpoint in pfSense without a full teardown. Checks that `NORDVPNWG_GW` is online before rotating — skips silently if the tunnel is down. After rotating, automatically updates `/var/db/nordvpn-wg-peer.conf` on pfSense and applies the change directly to the running WireGuard kernel.
@@ -521,7 +527,8 @@ make nordvpn-rotate-wg FORCE=1
 
 After each rotation the watchdog peer conf and WG kernel are updated directly. The monitor route (`1.1.1.1 → 10.5.0.1 via tun_wg1`) is restored automatically by the watchdog on its next run — no manual `route add` needed.
 
-#### Watchdog (120s deadlock prevention + auto-recovery)
+<details>
+<summary><strong>Watchdog (120s deadlock prevention + auto-recovery)</strong></summary>
 
 NordVPN WireGuard (like most WireGuard implementations) hits a REKEY_AFTER_TIME=120s deadlock when both endpoints try to re-initiate simultaneously. The watchdog prevents this by proactively resetting the peer every 85 seconds when the gateway is online, and silences initiations (removes the peer) during a 300-second backoff when the gateway is offline.
 
@@ -557,14 +564,20 @@ State files written to `/var/db/`:
 | `nordvpn-wg-down-since` | Timestamp when the GW first went down — drives the 500s escalation timer (never reset during reactive resets) |
 | `nordvpn-wg-last-escalation` | Timestamp of last server rotation — drives the 300s post-escalation grace period |
 
-#### Tear down
+</details>
+
+<details>
+<summary><strong>Tear down</strong></summary>
 
 ```bash
 make nordvpn-teardown-wg                  # remove rules, NAT, gateway, peer; leave tunnel
 make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
 ```
 
-#### NordVPN make targets
+</details>
+
+<details>
+<summary><strong>NordVPN make targets</strong></summary>
 
 | Target | Description |
 |--------|-------------|
@@ -572,6 +585,8 @@ make nordvpn-teardown-wg DELETE_TUNNEL=1  # also delete the WireGuard tunnel
 | `nordvpn-creds` | Fetch nordlynx_private_key from API (`NORDVPN_TOKEN=`) |
 | `nordvpn-rotate-wg` | Rotate to lowest-load server — checks gateway first, updates WG kernel and watchdog peer conf (`COUNTRY_ID=`, `TUNNEL=`, `GW_NAME=`, `DRY_RUN=`, `FORCE=`) |
 | `nordvpn-teardown-wg` | Remove kill-switch rules, NAT, gateway, peer (`TUNNEL=`, `IFACE=`, `GW=`, `DELETE_TUNNEL=`) |
+
+</details>
 
 ### Firewall Alias Management
 
@@ -659,7 +674,8 @@ make bulk-import BULK_FILE=examples/bulk-services.csv  DRY_RUN=1
 make bulk-import BULK_FILE=examples/bulk-services.json
 ```
 
-#### JSON format
+<details>
+<summary><strong>JSON format</strong></summary>
 
 Three top-level keys are supported. You can mix them in one file:
 
@@ -694,7 +710,10 @@ Three top-level keys are supported. You can mix them in one file:
 
 A bare JSON array is treated as `services`.
 
-#### CSV format
+</details>
+
+<details>
+<summary><strong>CSV format</strong></summary>
 
 The record type is inferred from the header columns:
 
@@ -721,7 +740,10 @@ nas01,bub.lan,192.168.7.20,TrueNAS primary
 
 Comments (lines starting with `#`) are stripped.
 
-#### Service record fields
+</details>
+
+<details>
+<summary><strong>Service record fields</strong></summary>
 
 A `services` record creates four resources per entry (same as `make add-service`):
 
@@ -736,7 +758,10 @@ A `services` record creates four resources per entry (same as `make add-service`
 
 See `examples/` for ready-to-use sample files.
 
-### Alternative: Gluetun (Docker-based VPN client)
+</details>
+
+<details>
+<summary><strong>Alternative: Gluetun (Docker-based VPN client)</strong></summary>
 
 [Gluetun](https://github.com/qdm12/gluetun) is a Docker container that manages VPN connections directly, with native support for ProtonVPN, NordVPN, Mullvad, and many others. It is an alternative to configuring WireGuard inside pfSense.
 
@@ -785,6 +810,8 @@ services:
 
 The `UPDATER_PERIOD` setting is what resolves the peer renewal problem encountered with pfSense: Gluetun periodically pulls a fresh server list from the provider API and reconnects, eliminating the need for watchdog scripts or manual key rotation.
 
+</details>
+
 ### HAProxy Frontend Management
 
 Manage frontends (bind address, mode, SSL cert) directly:
@@ -821,7 +848,8 @@ docker-compose run --rm pfsense-cli haproxy:route-delete \
   --acl myapp
 ```
 
-### Advanced: Using Docker Compose Directly
+<details>
+<summary><strong>Advanced: Using Docker Compose Directly</strong></summary>
 
 For more control, use docker-compose commands directly:
 
@@ -862,6 +890,8 @@ docker-compose run --rm pfsense-cli haproxy:route-add \
   --hostname myapp.example.com \
   --backend myapp
 ```
+
+</details>
 
 ### Certificate Management
 
@@ -1134,6 +1164,9 @@ To switch methods, uncomment the desired line(s) and comment out `notify_via_sla
 
 ## Architecture
 
+<details>
+<summary>Show</summary>
+
 ### DNS Strategy
 
 - **`.example.local` domain**: Internal DNS resolution for backend servers
@@ -1177,6 +1210,8 @@ make delete-service ALIAS=myapp HOST_BUB=my-backend HOST_LAMOLABS=my-frontend
 
 User accesses `https://myapp.example.com` → routed through HAProxy → reaches service at `192.168.1.100:3000`
 
+</details>
+
 ## Helper Alias
 
 ### Quick Setup
@@ -1214,6 +1249,9 @@ pfsense haproxy-list
 **The setup script includes comprehensive usage examples in its comments!**
 
 ## Available Make Targets
+
+<details>
+<summary>Show</summary>
 
 ```bash
 make help               # Show all available targets (default)
@@ -1268,7 +1306,12 @@ make optics-show             # Show SFP+ transceiver DDM diagnostics ([IFACE=ix0
 make clean              # Clean up Docker resources
 ```
 
+</details>
+
 ## Documentation
+
+<details>
+<summary>Show</summary>
 
 - **[setup-alias.sh](scripts/setup-alias.sh)** — adds a `pfsense` shell alias pointing at `node cli.js`. Source from `~/.bashrc` or `~/.zshrc`.
 - **[check-certs.sh](scripts/check-certs.sh)** — cron-safe cert expiry wrapper; sources `.env`, logs with timestamps, exits 1 on expiry. Installed by `make cert-check-schedule`.
@@ -1282,6 +1325,8 @@ make clean              # Clean up Docker resources
 - **[INSTALL_API.md](docs/INSTALL_API.md)** — pfSense REST API package installation
 - **[SETUP.md](docs/SETUP.md)** — Initial setup and API configuration
 - **[ALIASES.md](docs/ALIASES.md)** — DNS alias management examples
+
+</details>
 
 ## Troubleshooting
 
@@ -1384,6 +1429,9 @@ docker-compose build
 
 ## Technical Details
 
+<details>
+<summary>Show</summary>
+
 - **API Version**: pfSense REST API v2
 - **Authentication**: KeyAuth with `x-api-key` header
 - **Node.js**: 20-alpine
@@ -1407,3 +1455,5 @@ docker-compose build
 **API limitations** (not exposed by pfSense REST API v2 on pfSense 2.7.x):
 - Gateway groups — configure in GUI: `System > Routing > Gateway Groups`
 - Shellcmd / earlyshellcmd — configure in GUI: `Services > Shellcmd`
+
+</details>
