@@ -1056,6 +1056,28 @@ Output includes module type, vendor/PN/SN, TX/RX power (dBm), temperature, volta
 
 > **Requirement**: `diagnostics/command_prompt` must be enabled in pfSense API settings (`System > API`).
 
+### Package Update Checker
+
+Deploys `pkg_check.php` to pfSense and installs a daily cron job that checks for available package updates and notifies via Slack (configured in pfSense's notification settings under `System > Advanced > Notifications`).
+
+```bash
+# Deploy script and install cron job (daily at 07:30, default)
+pfsense pkgcheck:install
+
+# Custom schedule
+pfsense pkgcheck:install --schedule "0 6 * * *"   # 06:00 daily
+```
+
+What it does:
+
+1. Writes `pkg_check.php` to `/usr/local/sbin/` on pfSense via the command prompt API
+2. Installs a cron job (`30 7 * * *` by default) via the pfSense REST API v2, with automatic fallback to `cron.inc` PHP for older API versions
+3. Removes any pre-existing `pkg_check.php` cron entry before re-adding (idempotent)
+
+The script uses pfSense's built-in `notify_via_slack()` — no external webhook configuration needed beyond the existing pfSense Slack notification settings.
+
+> **Requirement**: `diagnostics/command_prompt` must be enabled in pfSense API settings (`System > API`).
+
 ## Architecture
 
 ### DNS Strategy
