@@ -1,3 +1,10 @@
+## [1.14.5](https://github.com/slmingol/pfsense-cli/compare/v1.14.4...v1.14.5) (2026-09-01)
+
+
+### Documentation
+
+* add source references to pkgcheck README section ([fc958cd](https://github.com/slmingol/pfsense-cli/commit/fc958cdf3c0fea01f350e762c45ad8361bb3684d))
+
 ## [1.14.4](https://github.com/slmingol/pfsense-cli/compare/v1.14.3...v1.14.4) (2026-09-01)
 
 
