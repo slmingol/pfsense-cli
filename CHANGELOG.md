@@ -1,3 +1,10 @@
+## [1.14.1](https://github.com/slmingol/pfsense-cli/compare/v1.14.0...v1.14.1) (2026-09-01)
+
+
+### Documentation
+
+* document pkgcheck:install command in README ([ceaea8d](https://github.com/slmingol/pfsense-cli/commit/ceaea8dbcebfa29ef7ebbdecd8c9692bd46517de))
+
 ## [1.14.0](https://github.com/slmingol/pfsense-cli/compare/v1.13.1...v1.14.0) (2026-09-01)
 
 
