@@ -18,6 +18,40 @@
 
 A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense via the REST API.
 
+## Table of Contents
+
+- [Features](#features)
+- [Prerequisites](#prerequisites)
+- [Setup](#setup)
+  - [Makefile site configuration](#makefile-site-configuration)
+- [Usage](#usage)
+  - [Help / List Available Commands](#help--list-available-commands)
+  - [DNS Management](#dns-management)
+  - [HAProxy Backend Management](#haproxy-backend-management)
+  - [HAProxy Frontend Management](#haproxy-frontend-management)
+  - [HAProxy Frontend Routing](#haproxy-frontend-routing)
+  - [WireGuard](#wireguard)
+  - [NordVPN WireGuard (NordLynx)](#nordvpn-wireguard-nordlynx)
+  - [Firewall Alias Management](#firewall-alias-management)
+  - [NAT Port Forward Management](#nat-port-forward-management)
+  - [Bulk Operations](#bulk-operations)
+  - [Certificate Management](#certificate-management)
+  - [DHCP Static Mappings](#dhcp-static-mappings)
+  - [Configuration History](#configuration-history)
+  - [USB Config Backup](#usb-config-backup)
+  - [SFP+ Optics Diagnostics](#sfp-optics-diagnostics)
+  - [Package Update Checker](#package-update-checker)
+- [Architecture](#architecture)
+  - [DNS Strategy](#dns-strategy)
+  - [HAProxy Configuration](#haproxy-configuration)
+  - [Complete Workflow Example](#complete-workflow-example)
+- [Helper Alias](#helper-alias)
+- [Available Make Targets](#available-make-targets)
+- [Documentation](#documentation)
+- [Troubleshooting](#troubleshooting)
+- [Development](#development)
+- [Technical Details](#technical-details)
+
 ## Features
 
 ✓ **DNS Management** - List, add, update, delete DNS Resolver entries  
