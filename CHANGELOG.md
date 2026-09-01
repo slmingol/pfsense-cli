@@ -1,3 +1,10 @@
+## [1.14.3](https://github.com/slmingol/pfsense-cli/compare/v1.14.2...v1.14.3) (2026-09-01)
+
+
+### Documentation
+
+* add table of contents to README ([ded5e71](https://github.com/slmingol/pfsense-cli/commit/ded5e71b16ab63cb8650d8a640618b8132f88128))
+
 ## [1.14.2](https://github.com/slmingol/pfsense-cli/compare/v1.14.1...v1.14.2) (2026-09-01)
 
 
