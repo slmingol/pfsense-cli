@@ -21,6 +21,7 @@ const { listStaticMappings, addStaticMapping, updateStaticMapping, deleteStaticM
 const { showOptics } = require('./lib/optics');
 const { listConfigHistory, pruneConfigHistory } = require('./lib/config');
 const { backupStatus, backupNow, backupInstall, writeUsbRecovery, backupCachePkgs } = require('./lib/backup');
+const { pkgcheckInstall } = require('./lib/pkgcheck');
 const fs = require('fs');
 const path = require('path');
 const packageJson = require('./package.json');
@@ -1118,6 +1119,23 @@ program
   .action(async (options) => {
     try {
       await backupCachePkgs({ usbDev: options.usbDev });
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// ---------------------------------------------------------------------------
+// Package update check
+// ---------------------------------------------------------------------------
+
+program
+  .command('pkgcheck:install')
+  .description('Deploy pkg_check.php to /root and install cron job on pfSense')
+  .option('-s, --schedule <cron>', 'Cron schedule (default: "30 7 * * *" — daily at 07:30)', '30 7 * * *')
+  .action(async (options) => {
+    try {
+      await pkgcheckInstall({ schedule: options.schedule });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);
