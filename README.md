@@ -18,7 +18,8 @@
 
 A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense via the REST API.
 
-## Table of Contents
+<details>
+<summary><strong>Table of Contents</strong></summary>
 
 - [Features](#features)
 - [Prerequisites](#prerequisites)
@@ -51,6 +52,8 @@ A CLI tool to manage DNS, HAProxy, and WireGuard VPN configuration in pfSense vi
 - [Troubleshooting](#troubleshooting)
 - [Development](#development)
 - [Technical Details](#technical-details)
+
+</details>
 
 ## Features
 
