@@ -1,3 +1,10 @@
+## [1.14.0](https://github.com/slmingol/pfsense-cli/compare/v1.13.1...v1.14.0) (2026-09-01)
+
+
+### Features
+
+* add pkgcheck:install command to deploy pfSense package update checker ([104297a](https://github.com/slmingol/pfsense-cli/commit/104297a958ac7a1167cc7f9a0bb81bda5d342eb3))
+
 ## [1.13.1](https://github.com/slmingol/pfsense-cli/compare/v1.13.0...v1.13.1) (2026-08-29)
 
 
