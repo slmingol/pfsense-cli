@@ -1,3 +1,10 @@
+## [1.14.4](https://github.com/slmingol/pfsense-cli/compare/v1.14.3...v1.14.4) (2026-09-01)
+
+
+### Documentation
+
+* make table of contents collapsible via <details> ([1e73fb0](https://github.com/slmingol/pfsense-cli/commit/1e73fb09d38d6118cf7338cdcd5739382ccb1d07))
+
 ## [1.14.3](https://github.com/slmingol/pfsense-cli/compare/v1.14.2...v1.14.3) (2026-09-01)
 
 
