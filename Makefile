@@ -5,7 +5,7 @@ export BUILDKIT_PROGRESS = quiet
 
 .PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias \
 	haproxy-list haproxy-add haproxy-delete haproxy-use-dns haproxy-use-ip \
-	haproxy-disable-resolver haproxy-inspect haproxy-apply haproxy-restart haproxy-route-add haproxy-route-delete \
+	haproxy-disable-resolver haproxy-inspect haproxy-apply haproxy-restart haproxy-route-add haproxy-route-delete haproxy-set-timeouts \
 	add-service delete-service list-hosts help cli-help test-api check-version \
 	wg-status wg-provision wg-apply wg-dry-run wg-teardown \
 	fw-rule-list fw-rule-add fw-rule-delete fw-rule-update \
@@ -255,6 +255,22 @@ haproxy-inspect: ## Dump raw JSON for a named backend and its server entries (NA
 		exit 1; \
 	fi
 	@node cli.js haproxy:inspect --name $(NAME) 2>/dev/null
+
+CONNECT_TIMEOUT ?=
+SERVER_TIMEOUT  ?=
+TUNNEL_TIMEOUT  ?=
+
+haproxy-set-timeouts: ## Set backend timeouts (NAME= required; CONNECT_TIMEOUT= SERVER_TIMEOUT= TUNNEL_TIMEOUT= in ms)
+	@if [ -z "$(NAME)" ]; then \
+		echo "Error: NAME is required"; \
+		echo "Usage: make haproxy-set-timeouts NAME=mybackend TUNNEL_TIMEOUT=3600000"; \
+		exit 1; \
+	fi
+	@node cli.js haproxy:set-timeouts --name $(NAME) \
+		$(if $(CONNECT_TIMEOUT),--connect-timeout $(CONNECT_TIMEOUT)) \
+		$(if $(SERVER_TIMEOUT),--server-timeout $(SERVER_TIMEOUT)) \
+		$(if $(TUNNEL_TIMEOUT),--tunnel-timeout $(TUNNEL_TIMEOUT)) \
+		2>/dev/null
 
 haproxy-apply: ## Apply pending HAProxy config changes
 	@node cli.js haproxy:apply 2>/dev/null

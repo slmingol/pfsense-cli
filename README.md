@@ -337,6 +337,11 @@ make haproxy-restart
 # Clear resolver config on backend servers (dry-run by default)
 make haproxy-disable-resolver
 make haproxy-disable-resolver NAME=myapp APPLY=true
+
+# Set connection, server, and/or tunnel timeouts on a backend
+# tunnel timeout goes into advanced_backend as a raw HAProxy directive (useful for WebSocket / long-lived connections)
+make haproxy-set-timeouts NAME=ghost-files TUNNEL_TIMEOUT=3600000
+make haproxy-set-timeouts NAME=ghost-files CONNECT_TIMEOUT=5000 SERVER_TIMEOUT=60000 TUNNEL_TIMEOUT=3600000
 ```
 
 #### HAProxy watchdog daemon
