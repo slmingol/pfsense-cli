@@ -9,7 +9,7 @@ process.emitWarning = (warning, ...args) => {
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
-const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy, auditBackends, listFrontends, addFrontend, deleteFrontend, assignFrontendCert } = require('./lib/haproxy');
+const { listBackends, addBackend, deleteBackend, addFrontendRoute, deleteFrontendRoute, fixBackendDnsAddresses, fixBackendIpAddresses, inspectBackend, disableBackendResolver, restartHaproxy, auditBackends, listFrontends, addFrontend, deleteFrontend, assignFrontendCert, setBackendTimeouts } = require('./lib/haproxy');
 const { listTunnels, applyProtonVPN, teardownProtonVPN } = require('./lib/wireguard');
 const { listAliases, createOrUpdateAlias, addAliasHost, removeAliasHost, deleteAlias,
         listRules, addRule, deleteRule, updateRule,
@@ -410,6 +410,30 @@ program
   .action(async () => {
     try {
       await auditBackends();
+    } catch (error) {
+      console.error('Error:', error.message);
+      process.exit(1);
+    }
+  });
+
+// Set timeout values on a HAProxy backend
+program
+  .command('haproxy:set-timeouts')
+  .description('Set connection, server, and/or tunnel timeouts on a HAProxy backend')
+  .requiredOption('-n, --name <name>', 'Backend name')
+  .option('--connect-timeout <ms>', 'Connection timeout in milliseconds')
+  .option('--server-timeout <ms>', 'Server timeout in milliseconds')
+  .option('--tunnel-timeout <ms>', 'Tunnel timeout in milliseconds (WebSocket; written to advanced_backend)')
+  .option('--no-apply', 'Skip apply after patching')
+  .action(async (options) => {
+    try {
+      await setBackendTimeouts({
+        name:           options.name,
+        connectTimeout: options.connectTimeout !== undefined ? parseInt(options.connectTimeout) : undefined,
+        serverTimeout:  options.serverTimeout  !== undefined ? parseInt(options.serverTimeout)  : undefined,
+        tunnelTimeout:  options.tunnelTimeout  !== undefined ? parseInt(options.tunnelTimeout)  : undefined,
+        apply:          options.apply,
+      });
     } catch (error) {
       console.error('Error:', error.message);
       process.exit(1);

@@ -198,6 +198,61 @@ describe('fixBackendIpAddresses', () => {
 });
 
 // ---------------------------------------------------------------------------
+// setBackendTimeouts
+// ---------------------------------------------------------------------------
+describe('setBackendTimeouts', () => {
+  const backend = { id: 5, name: 'ghost-files', advanced_backend: '' };
+
+  test('PATCHes connection_timeout and server_timeout', async () => {
+    mockClient.get.mockResolvedValue({ data: { data: [backend] } });
+    await haproxy.setBackendTimeouts({ name: 'ghost-files', connectTimeout: 5000, serverTimeout: 60000 });
+    expect(mockClient.patch).toHaveBeenCalledWith(
+      '/api/v2/services/haproxy/backend',
+      expect.objectContaining({ id: 5, connection_timeout: '5000', server_timeout: '60000' })
+    );
+  });
+
+  test('writes tunnel timeout into advanced_backend', async () => {
+    mockClient.get.mockResolvedValue({ data: { data: [backend] } });
+    await haproxy.setBackendTimeouts({ name: 'ghost-files', tunnelTimeout: 3600000 });
+    expect(mockClient.patch).toHaveBeenCalledWith(
+      '/api/v2/services/haproxy/backend',
+      expect.objectContaining({ advanced_backend: 'timeout tunnel 3600000ms' })
+    );
+  });
+
+  test('merges tunnel timeout, preserving other advanced_backend lines', async () => {
+    const existing = { ...backend, advanced_backend: 'option http-server-close' };
+    mockClient.get.mockResolvedValue({ data: { data: [existing] } });
+    await haproxy.setBackendTimeouts({ name: 'ghost-files', tunnelTimeout: 3600000 });
+    const patch = mockClient.patch.mock.calls[0][1];
+    expect(patch.advanced_backend).toContain('option http-server-close');
+    expect(patch.advanced_backend).toContain('timeout tunnel 3600000ms');
+  });
+
+  test('replaces existing timeout tunnel line', async () => {
+    const existing = { ...backend, advanced_backend: 'timeout tunnel 1000ms\noption http-server-close' };
+    mockClient.get.mockResolvedValue({ data: { data: [existing] } });
+    await haproxy.setBackendTimeouts({ name: 'ghost-files', tunnelTimeout: 3600000 });
+    const patch = mockClient.patch.mock.calls[0][1];
+    expect(patch.advanced_backend).not.toContain('timeout tunnel 1000ms');
+    expect(patch.advanced_backend).toContain('timeout tunnel 3600000ms');
+  });
+
+  test('throws when backend not found', async () => {
+    mockClient.get.mockResolvedValue({ data: { data: [] } });
+    await expect(haproxy.setBackendTimeouts({ name: 'missing', tunnelTimeout: 1000 }))
+      .rejects.toThrow('Backend not found: missing');
+  });
+
+  test('skips apply when apply=false', async () => {
+    mockClient.get.mockResolvedValue({ data: { data: [backend] } });
+    await haproxy.setBackendTimeouts({ name: 'ghost-files', tunnelTimeout: 3600000, apply: false });
+    expect(mockClient.post).not.toHaveBeenCalled();
+  });
+});
+
+// ---------------------------------------------------------------------------
 // disableBackendResolver
 // ---------------------------------------------------------------------------
 describe('disableBackendResolver', () => {
