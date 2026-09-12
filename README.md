@@ -1273,7 +1273,8 @@ make add-dual-alias     # Add DNS alias to both domains
 make haproxy-list       # List HAProxy backends
 make haproxy-add        # Add HAProxy backend
 make haproxy-delete     # Delete HAProxy backend
-make haproxy-use-dns    # Convert IP backend addresses to .bub.lan hostnames (APPLY=true to commit)
+make haproxy-use-dns         # Convert IP backend addresses to .bub.lan hostnames (APPLY=true to commit)
+make haproxy-set-timeouts    # Set backend timeouts (NAME= required; CONNECT_TIMEOUT= SERVER_TIMEOUT= TUNNEL_TIMEOUT= in ms)
 make add-service        # Complete service deployment (DNS + HAProxy); SSL=true for HTTPS backends
 make delete-service     # Complete service teardown (reverse of add-service)
 make wg-status               # Show WireGuard tunnel and peer status
