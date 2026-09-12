@@ -1,3 +1,10 @@
+## [1.15.1](https://github.com/slmingol/pfsense-cli/compare/v1.15.0...v1.15.1) (2026-09-12)
+
+
+### Documentation
+
+* add haproxy-set-timeouts to Available Make Targets ([22bb12f](https://github.com/slmingol/pfsense-cli/commit/22bb12ff3479739e5e1b3d298d4091b9809e5e1b))
+
 ## [1.15.0](https://github.com/slmingol/pfsense-cli/compare/v1.14.6...v1.15.0) (2026-09-12)
 
 
