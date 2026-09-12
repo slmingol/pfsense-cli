@@ -208,7 +208,7 @@ describe('setBackendTimeouts', () => {
     await haproxy.setBackendTimeouts({ name: 'ghost-files', connectTimeout: 5000, serverTimeout: 60000 });
     expect(mockClient.patch).toHaveBeenCalledWith(
       '/api/v2/services/haproxy/backend',
-      expect.objectContaining({ id: 5, connection_timeout: '5000', server_timeout: '60000' })
+      expect.objectContaining({ id: 5, connection_timeout: 5000, server_timeout: 60000 })
     );
   });
 
