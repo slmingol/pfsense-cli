@@ -1,3 +1,10 @@
+## [1.15.2](https://github.com/slmingol/pfsense-cli/compare/v1.15.1...v1.15.2) (2026-09-12)
+
+
+### Bug Fixes
+
+* **haproxy:** pass timeout values as integers not strings ([f1e13f9](https://github.com/slmingol/pfsense-cli/commit/f1e13f91b6bcf593f93f40a42e9b55643741d1da))
+
 ## [1.15.1](https://github.com/slmingol/pfsense-cli/compare/v1.15.0...v1.15.1) (2026-09-12)
 
 
