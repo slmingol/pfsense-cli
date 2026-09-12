@@ -1,3 +1,10 @@
+## [1.15.0](https://github.com/slmingol/pfsense-cli/compare/v1.14.6...v1.15.0) (2026-09-12)
+
+
+### Features
+
+* **haproxy:** add haproxy:set-timeouts command ([773724d](https://github.com/slmingol/pfsense-cli/commit/773724d0895de024a363ce3b43791b904f62942c))
+
 ## [1.14.6](https://github.com/slmingol/pfsense-cli/compare/v1.14.5...v1.14.6) (2026-09-01)
 
 
