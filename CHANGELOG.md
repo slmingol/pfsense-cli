@@ -1,3 +1,11 @@
+## [1.15.3](https://github.com/slmingol/pfsense-cli/compare/v1.15.2...v1.15.3) (2026-09-20)
+
+### Bug Fixes
+
+* **deps:** force conventional-changelog-writer@9 via npm overrides ([4c980d2](https://github.com/slmingol/pfsense-cli/commit/4c980d207468f3f5bab6cf2e66ba6b8aae3aac7e))
+* **deps:** update dependency commander to v15 ([a0de39a](https://github.com/slmingol/pfsense-cli/commit/a0de39afc2e8c8d055fe563d5a8751338db7f3fb))
+* **deps:** update dependency dotenv to v18 ([c8f0c4e](https://github.com/slmingol/pfsense-cli/commit/c8f0c4e8b174076267b2dbb527d28b6985ba99eb))
+
 ## [1.15.2](https://github.com/slmingol/pfsense-cli/compare/v1.15.1...v1.15.2) (2026-09-12)
 
 
