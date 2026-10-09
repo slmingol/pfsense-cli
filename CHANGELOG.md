@@ -1,3 +1,9 @@
+## [1.15.4](https://github.com/slmingol/pfsense-cli/compare/v1.15.3...v1.15.4) (2026-10-09)
+
+### Bug Fixes
+
+* **makefile:** strip ANSI codes before parsing list-hosts output ([239b32a](https://github.com/slmingol/pfsense-cli/commit/239b32aa86999be344a3d1781a40d15bcae91a81))
+
 ## [1.15.3](https://github.com/slmingol/pfsense-cli/compare/v1.15.2...v1.15.3) (2026-09-20)
 
 ### Bug Fixes
