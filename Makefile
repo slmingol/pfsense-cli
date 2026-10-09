@@ -124,12 +124,14 @@ list-hosts: ## Show valid HOST_BUB and HOST_LAMOLABS values (queries live DNS)
 	@echo ""
 	@echo "Backend hosts  (HOST_BUB candidates — $(DOMAIN_BACKEND) domain):"
 	@result=$$(node cli.js list 2>/dev/null \
+	  | sed 's/\x1b\[[0-9;]*m//g' \
 	  | grep -E '^\s*[0-9]+\.' | grep '\.$(DOMAIN_BACKEND)' \
 	  | sed 's/.*[0-9]\+\. //; s/\.$(DOMAIN_BACKEND)//'); \
 	if [ -z "$$result" ]; then echo "  (none found)"; else echo "$$result" | sed 's/^/  /'; fi
 	@echo ""
 	@echo "Frontend hosts (HOST_LAMOLABS candidates — $(DOMAIN_FRONTEND) domain):"
 	@result=$$(node cli.js list 2>/dev/null \
+	  | sed 's/\x1b\[[0-9;]*m//g' \
 	  | grep -E '^\s*[0-9]+\.' | grep '\.$(DOMAIN_FRONTEND)' \
 	  | sed 's/.*[0-9]\+\. //; s/\.$(DOMAIN_FRONTEND)//'); \
 	if [ -z "$$result" ]; then echo "  (none found)"; else echo "$$result" | sed 's/^/  /'; fi
