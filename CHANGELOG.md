@@ -1,3 +1,9 @@
+## [1.15.5](https://github.com/slmingol/pfsense-cli/compare/v1.15.4...v1.15.5) (2026-10-10)
+
+### Bug Fixes
+
+* **makefile:** fail add-service on DNS alias error instead of silently continuing ([#52](https://github.com/slmingol/pfsense-cli/issues/52)) ([d6103f4](https://github.com/slmingol/pfsense-cli/commit/d6103f435a7936a1d07e723adb81ac5da7ec0517))
+
 ## [1.15.4](https://github.com/slmingol/pfsense-cli/compare/v1.15.3...v1.15.4) (2026-10-09)
 
 ### Bug Fixes
