@@ -81,9 +81,9 @@ add-service: ## Add complete service (ALIAS= PORT= DESC= [SSL=true]) - DNS + HAP
 		exit 1; \
 	fi
 	@printf "\n\033[1;36m[1/4]\033[0m DNS alias \033[36m$(ALIAS).$(DOMAIN_BACKEND)\033[0m → \033[36m$(HOST_BUB).$(DOMAIN_BACKEND)\033[0m \033[90m(backend)\033[0m\n"
-	@node cli.js alias:add --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) --description "$(DESC)" 2>/dev/null || true
+	@node cli.js alias:add --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) --description "$(DESC)"
 	@printf "\n\033[1;36m[2/4]\033[0m DNS alias \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m → \033[36m$(HOST_LAMOLABS).$(DOMAIN_FRONTEND)\033[0m \033[90m(frontend)\033[0m\n"
-	@node cli.js alias:add --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) --description "$(DESC)" 2>/dev/null || true
+	@node cli.js alias:add --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) --description "$(DESC)"
 	@printf "\n\033[1;36m[3/4]\033[0m HAProxy backend \033[36m$(ALIAS)\033[0m → \033[36m$(ALIAS).$(DOMAIN_BACKEND):$(PORT)\033[0m$(if $(filter true,$(SSL)), \033[33m[SSL]\033[0m)\n"
 	@node cli.js haproxy:add --name $(ALIAS) --server-name $(ALIAS).$(DOMAIN_BACKEND) --server-address $(ALIAS).$(DOMAIN_BACKEND) --server-port $(PORT) $(if $(filter true,$(SSL)),--ssl) 2>/dev/null
 	@printf "\n\033[1;36m[4/4]\033[0m Frontend route \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m → \033[36m$(ALIAS)\033[0m backend\n"
