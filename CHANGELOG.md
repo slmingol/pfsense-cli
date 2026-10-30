@@ -1,3 +1,9 @@
+## [1.15.6](https://github.com/slmingol/pfsense-cli/compare/v1.15.5...v1.15.6) (2026-10-30)
+
+### Bug Fixes
+
+* security hardening and bug fixes from codebase review ([4aa7044](https://github.com/slmingol/pfsense-cli/commit/4aa70446fe22ac4f2941bb76f305e466e460d8f0)), references [#58](https://github.com/slmingol/pfsense-cli/issues/58) [#59](https://github.com/slmingol/pfsense-cli/issues/59) [#60](https://github.com/slmingol/pfsense-cli/issues/60) [#61](https://github.com/slmingol/pfsense-cli/issues/61)
+
 ## [1.15.5](https://github.com/slmingol/pfsense-cli/compare/v1.15.4...v1.15.5) (2026-10-10)
 
 ### Bug Fixes
