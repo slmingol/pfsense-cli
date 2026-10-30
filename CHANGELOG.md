@@ -1,3 +1,9 @@
+## [1.15.7](https://github.com/slmingol/pfsense-cli/compare/v1.15.6...v1.15.7) (2026-10-30)
+
+### Bug Fixes
+
+* null crash in nat:list, WG port validation, NordVPN https timeout ([4354a17](https://github.com/slmingol/pfsense-cli/commit/4354a17b09dd988053fc08e2ed9e2ae479c9aeba))
+
 ## [1.15.6](https://github.com/slmingol/pfsense-cli/compare/v1.15.5...v1.15.6) (2026-10-30)
 
 ### Bug Fixes
