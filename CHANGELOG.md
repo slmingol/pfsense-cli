@@ -1,3 +1,9 @@
+## [1.15.9](https://github.com/slmingol/pfsense-cli/compare/v1.15.8...v1.15.9) (2026-10-30)
+
+### Bug Fixes
+
+* resolve all 12 open bug issues from codebase review ([c3251ab](https://github.com/slmingol/pfsense-cli/commit/c3251abdca354e6258666d065b6b07a3a3e8b84e)), references [#58](https://github.com/slmingol/pfsense-cli/issues/58) [#62](https://github.com/slmingol/pfsense-cli/issues/62) [#62](https://github.com/slmingol/pfsense-cli/issues/62) [#64](https://github.com/slmingol/pfsense-cli/issues/64) [#63](https://github.com/slmingol/pfsense-cli/issues/63) [#65](https://github.com/slmingol/pfsense-cli/issues/65) [#66](https://github.com/slmingol/pfsense-cli/issues/66) [#72](https://github.com/slmingol/pfsense-cli/issues/72) [#74](https://github.com/slmingol/pfsense-cli/issues/74) [#75](https://github.com/slmingol/pfsense-cli/issues/75) [#76](https://github.com/slmingol/pfsense-cli/issues/76)
+
 ## [1.15.8](https://github.com/slmingol/pfsense-cli/compare/v1.15.7...v1.15.8) (2026-10-30)
 
 ### Bug Fixes
