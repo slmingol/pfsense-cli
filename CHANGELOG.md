@@ -1,3 +1,9 @@
+## [1.15.8](https://github.com/slmingol/pfsense-cli/compare/v1.15.7...v1.15.8) (2026-10-30)
+
+### Bug Fixes
+
+* validate olderThanDays as positive integer before config prune ([acacaad](https://github.com/slmingol/pfsense-cli/commit/acacaad74f684671e0ed4a8e6229ab6c807182d0))
+
 ## [1.15.7](https://github.com/slmingol/pfsense-cli/compare/v1.15.6...v1.15.7) (2026-10-30)
 
 ### Bug Fixes
