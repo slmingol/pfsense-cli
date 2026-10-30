@@ -1,3 +1,9 @@
+## [1.15.11](https://github.com/slmingol/pfsense-cli/compare/v1.15.10...v1.15.11) (2026-10-30)
+
+### Bug Fixes
+
+* **bulk:** RFC 4180 CSV parser, service rollback on failure, input validation ([#68](https://github.com/slmingol/pfsense-cli/issues/68)) ([b569186](https://github.com/slmingol/pfsense-cli/commit/b569186d4c13641cdd40a17fb0b936438989b01f))
+
 ## [1.15.10](https://github.com/slmingol/pfsense-cli/compare/v1.15.9...v1.15.10) (2026-10-30)
 
 ### Bug Fixes
