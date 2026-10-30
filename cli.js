@@ -1,11 +1,5 @@
 #!/usr/bin/env node
 
-// Suppress the NODE_TLS_REJECT_UNAUTHORIZED warning emitted when .env sets it to '0'
-const _emitWarning = process.emitWarning.bind(process);
-process.emitWarning = (warning, ...args) => {
-  if (typeof warning === 'string' && warning.includes('NODE_TLS_REJECT_UNAUTHORIZED')) return;
-  _emitWarning(warning, ...args);
-};
 
 const { Command } = require('commander');
 const { listEntries, addEntry, updateEntry, deleteEntry, addAlias, deleteAlias: deleteDnsAlias } = require('./lib/dns');
@@ -505,6 +499,7 @@ program
   .option('-t, --tunnel <descr>',     'Tunnel description to target', 'ProtonVPN01')
   .option('-n, --iface-name <name>',  'pfSense interface description', 'PROTONVPN')
   .option('-g, --gateway-name <name>','Gateway name (default: <IFACE>_GW)')
+  .option('-p, --listen-port <port>', 'WireGuard listen port (used to delete the WAN pass rule)')
   .option('--ks-alias <name>',        'Also delete the named kill-switch alias')
   .action(async (options) => {
     try {
@@ -512,6 +507,7 @@ program
         tunnelDescr:     options.tunnel,
         ifaceName:       options.ifaceName,
         gatewayName:     options.gatewayName,
+        listenPort:      options.listenPort ? parseInt(options.listenPort, 10) : null,
         killSwitchAlias: options.ksAlias || null,
       });
     } catch (error) {
@@ -971,7 +967,7 @@ program
     try {
       await listCerts({
         filter:      options.filter,
-        expiringDays: options.expiring !== null ? parseInt(options.expiring, 10) : undefined,
+        expiringDays: options.expiring !== undefined ? parseInt(options.expiring, 10) : undefined,
       });
     } catch (error) {
       console.error('Error:', error.message);
