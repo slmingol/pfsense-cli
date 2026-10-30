@@ -1,3 +1,9 @@
+## [1.15.10](https://github.com/slmingol/pfsense-cli/compare/v1.15.9...v1.15.10) (2026-10-30)
+
+### Bug Fixes
+
+* **haproxy:** roll back orphan backend when server-add fails ([#59](https://github.com/slmingol/pfsense-cli/issues/59)) ([b409ec9](https://github.com/slmingol/pfsense-cli/commit/b409ec9f7d04d3d9495537c2ecf60878078cae89))
+
 ## [1.15.9](https://github.com/slmingol/pfsense-cli/compare/v1.15.8...v1.15.9) (2026-10-30)
 
 ### Bug Fixes
