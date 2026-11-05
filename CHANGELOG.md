@@ -1,3 +1,9 @@
+## [1.15.12](https://github.com/slmingol/pfsense-cli/compare/v1.15.11...v1.15.12) (2026-11-05)
+
+### Bug Fixes
+
+* **haproxy:** add { cause } to re-thrown error to satisfy preserve-caught-error lint rule ([98bedb1](https://github.com/slmingol/pfsense-cli/commit/98bedb1afa4796d08f6fc0365002910cb2bb249a)), references [#77](https://github.com/slmingol/pfsense-cli/issues/77)
+
 ## [1.15.11](https://github.com/slmingol/pfsense-cli/compare/v1.15.10...v1.15.11) (2026-10-30)
 
 ### Bug Fixes
