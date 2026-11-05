@@ -1,3 +1,9 @@
+## [1.15.15](https://github.com/slmingol/pfsense-cli/compare/v1.15.14...v1.15.15) (2026-11-05)
+
+### Documentation
+
+* remove redundant CLAUDE.md ([030435a](https://github.com/slmingol/pfsense-cli/commit/030435ac1ca016a1eb236a78c80f33bf6d344234))
+
 ## [1.15.14](https://github.com/slmingol/pfsense-cli/compare/v1.15.13...v1.15.14) (2026-11-05)
 
 ### Documentation
