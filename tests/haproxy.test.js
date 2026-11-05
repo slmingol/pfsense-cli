@@ -166,14 +166,14 @@ describe('fixBackendIpAddresses', () => {
 
   test('dry-run: does not call patch', async () => {
     mockClient.get.mockResolvedValue({ data: { data: [backend] } });
-    mockDns.lookup.mockResolvedValue({ address: '10.0.0.5' });
+    mockDns.lookup.mockResolvedValue([{ address: '10.0.0.5' }]);
     await haproxy.fixBackendIpAddresses({ apply: false });
     expect(mockClient.patch).not.toHaveBeenCalled();
   });
 
   test('apply: PATCHes with resolved IP', async () => {
     mockClient.get.mockResolvedValue({ data: { data: [backend] } });
-    mockDns.lookup.mockResolvedValue({ address: '10.0.0.5' });
+    mockDns.lookup.mockResolvedValue([{ address: '10.0.0.5' }]);
     await haproxy.fixBackendIpAddresses({ apply: true });
     expect(mockClient.patch).toHaveBeenCalledWith(
       '/api/v2/services/haproxy/backend/server',

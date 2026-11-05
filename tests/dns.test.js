@@ -105,17 +105,17 @@ describe('addEntry', () => {
 // deleteEntry
 // ---------------------------------------------------------------------------
 describe('deleteEntry', () => {
-  test('finds entry by host+domain and DELETEs by index', async () => {
+  test('finds entry by host+domain and DELETEs by entity id', async () => {
     mockClient.get.mockResolvedValue({ data: { data: [
-      { host: 'web', domain: 'bub.lan', ip: ['10.0.0.1'] },
-      { host: 'db',  domain: 'bub.lan', ip: ['10.0.0.2'] },
+      { id: 0, host: 'web', domain: 'bub.lan', ip: ['10.0.0.1'] },
+      { id: 7, host: 'db',  domain: 'bub.lan', ip: ['10.0.0.2'] },
     ] } });
     mockClient.delete.mockResolvedValue({ data: { code: 200 } });
     jest.spyOn(console, 'log').mockImplementation(() => {});
     await dns.deleteEntry('db', 'bub.lan');
     expect(mockClient.delete).toHaveBeenCalledWith(
       '/api/v2/services/dns_resolver/host_override',
-      { data: { id: 1 } }
+      { data: { id: 7 } }
     );
     console.log.mockRestore();
   });
