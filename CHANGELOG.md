@@ -1,3 +1,9 @@
+## [1.15.14](https://github.com/slmingol/pfsense-cli/compare/v1.15.13...v1.15.14) (2026-11-05)
+
+### Documentation
+
+* add AGENTS.md, CLAUDE.md, and replace PR template ([f3caa89](https://github.com/slmingol/pfsense-cli/commit/f3caa898fb6b873974cb1f99373022333e5ac6c3))
+
 ## [1.15.13](https://github.com/slmingol/pfsense-cli/compare/v1.15.12...v1.15.13) (2026-11-05)
 
 ### Bug Fixes
