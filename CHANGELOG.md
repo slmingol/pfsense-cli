@@ -1,3 +1,9 @@
+## [1.15.13](https://github.com/slmingol/pfsense-cli/compare/v1.15.12...v1.15.13) (2026-11-05)
+
+### Bug Fixes
+
+* **tests:** update mocks to match production code changes from security review ([a429b2b](https://github.com/slmingol/pfsense-cli/commit/a429b2b07e85398887a32b83cce95a1c53dfc814))
+
 ## [1.15.12](https://github.com/slmingol/pfsense-cli/compare/v1.15.11...v1.15.12) (2026-11-05)
 
 ### Bug Fixes
