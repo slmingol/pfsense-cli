@@ -1,48 +1,37 @@
-## Description
+<!--
+Write for someone who skims on a phone. Short sentences, common words, active voice, one idea each.
+Say what the reader sees or can do first. File names and code go only in "How it works".
+Show, don't tell: a picture, a diagram or the table beats a paragraph. Delete a part that has nothing to say.
+-->
 
-<!-- Provide a brief description of the changes -->
+### In one line
 
-## Type of Change
+<!-- What changes for the reader, in 20 words or fewer. -->
 
-<!-- Mark the relevant option with an "x" -->
+### See it
 
-- [ ] feat: New feature
-- [ ] fix: Bug fix
-- [ ] docs: Documentation update
-- [ ] refactor: Code refactoring
-- [ ] perf: Performance improvement
-- [ ] test: Test updates
-- [ ] build: Build system changes
-- [ ] ci: CI/CD changes
-- [ ] chore: Other changes
+<!--
+Pick the cheapest one that fits:
+- A page changes: a before and an after screenshot.
+- A flow changes: a small Mermaid diagram (GitHub draws it). Mark the new parts.
+- Anything else: the table alone.
+-->
 
-## Breaking Changes
+| | Before | After |
+|---|---|---|
+| | | |
 
-<!-- If this PR introduces breaking changes, describe them here -->
+### After you merge
 
-- [ ] This PR includes breaking changes
+<!-- "Nothing to do." Or the one step the owner takes, and what to watch for. -->
 
-## Checklist
+### Checked
 
-- [ ] My commits follow the [Conventional Commits](https://www.conventionalcommits.org/) specification
-- [ ] I have updated the documentation accordingly
-- [ ] I have tested my changes locally
-- [ ] I have verified the Docker build works: `make build`
-- [ ] I have tested the CLI commands work as expected
+- ✅
+- ⚠️ Not checked:
 
-## Testing
+<details><summary>How it works</summary>
 
-<!-- Describe the testing you've done -->
+<!-- For reviewers: the files, the choices made and the limits. Short bullets. -->
 
-```bash
-# Example commands tested:
-make dns-list
-make haproxy-list
-make add-service ALIAS=test PORT=8080 DESC="Test"
-```
-
-## Related Issues
-
-<!-- Link any related issues here -->
-
-Closes #
+</details>
