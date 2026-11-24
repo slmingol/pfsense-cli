@@ -1,3 +1,9 @@
+## [1.16.1](https://github.com/slmingol/pfsense-cli/compare/v1.16.0...v1.16.1) (2026-11-24)
+
+### Bug Fixes
+
+* **scripts:** detect podman/docker in check-certs.sh ([6885699](https://github.com/slmingol/pfsense-cli/commit/68856994d426f34d3555a3686cc56331fdfd8594))
+
 ## [1.16.0](https://github.com/slmingol/pfsense-cli/compare/v1.15.17...v1.16.0) (2026-11-24)
 
 ### Features
