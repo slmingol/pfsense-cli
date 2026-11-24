@@ -3,6 +3,28 @@ export BUILDKIT_PROGRESS = quiet
 
 -include config.mk
 
+# ---------------------------------------------------------------------------
+# Runtime detection: podman > docker > node (fallback)
+# ---------------------------------------------------------------------------
+_PODMAN := $(shell command -v podman 2>/dev/null)
+_DOCKER := $(shell command -v docker 2>/dev/null)
+
+ifneq ($(_PODMAN),)
+  CONTAINER_RUNTIME := podman
+else ifneq ($(_DOCKER),)
+  CONTAINER_RUNTIME := docker
+else
+  CONTAINER_RUNTIME :=
+endif
+
+ifneq ($(CONTAINER_RUNTIME),)
+  CLI := $(CONTAINER_RUNTIME) run --rm --env-file .env pfsense-cli
+  _IMAGE_CHECK := $(shell $(CONTAINER_RUNTIME) image inspect pfsense-cli >/dev/null 2>&1 || \
+                    $(CONTAINER_RUNTIME) build -t pfsense-cli . >/dev/null 2>&1)
+else
+  CLI := $(CLI)
+endif
+
 .PHONY: build run dns-list dns-add dns-update dns-delete dns-alias-add dns-alias-delete add-dual-alias \
 	haproxy-list haproxy-add haproxy-delete haproxy-use-dns haproxy-use-ip \
 	haproxy-disable-resolver haproxy-inspect haproxy-apply haproxy-restart haproxy-route-add haproxy-route-delete haproxy-set-timeouts \
@@ -81,13 +103,13 @@ add-service: ## Add complete service (ALIAS= PORT= DESC= [SSL=true]) - DNS + HAP
 		exit 1; \
 	fi
 	@printf "\n\033[1;36m[1/4]\033[0m DNS alias \033[36m$(ALIAS).$(DOMAIN_BACKEND)\033[0m → \033[36m$(HOST_BUB).$(DOMAIN_BACKEND)\033[0m \033[90m(backend)\033[0m\n"
-	@node cli.js alias:add --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) --description "$(DESC)"
+	@$(CLI) alias:add --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) --description "$(DESC)"
 	@printf "\n\033[1;36m[2/4]\033[0m DNS alias \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m → \033[36m$(HOST_LAMOLABS).$(DOMAIN_FRONTEND)\033[0m \033[90m(frontend)\033[0m\n"
-	@node cli.js alias:add --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) --description "$(DESC)"
+	@$(CLI) alias:add --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) --description "$(DESC)"
 	@printf "\n\033[1;36m[3/4]\033[0m HAProxy backend \033[36m$(ALIAS)\033[0m → \033[36m$(ALIAS).$(DOMAIN_BACKEND):$(PORT)\033[0m$(if $(filter true,$(SSL)), \033[33m[SSL]\033[0m)\n"
-	@node cli.js haproxy:add --name $(ALIAS) --server-name $(ALIAS).$(DOMAIN_BACKEND) --server-address $(ALIAS).$(DOMAIN_BACKEND) --server-port $(PORT) $(if $(filter true,$(SSL)),--ssl) 2>/dev/null
+	@$(CLI) haproxy:add --name $(ALIAS) --server-name $(ALIAS).$(DOMAIN_BACKEND) --server-address $(ALIAS).$(DOMAIN_BACKEND) --server-port $(PORT) $(if $(filter true,$(SSL)),--ssl) 2>/dev/null
 	@printf "\n\033[1;36m[4/4]\033[0m Frontend route \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m → \033[36m$(ALIAS)\033[0m backend\n"
-	@node cli.js haproxy:route-add --frontend $(HAPROXY_FRONTEND) --acl $(ALIAS) --hostname $(ALIAS).$(DOMAIN_FRONTEND) --backend $(ALIAS) 2>/dev/null
+	@$(CLI) haproxy:route-add --frontend $(HAPROXY_FRONTEND) --acl $(ALIAS) --hostname $(ALIAS).$(DOMAIN_FRONTEND) --backend $(ALIAS) 2>/dev/null
 	@printf "\n\033[1;32m✓ Service \033[1;37m$(ALIAS)\033[1;32m fully configured!\033[0m\n"
 	@printf "\n  \033[1mDNS:\033[0m\n"
 	@printf "    \033[90m-\033[0m \033[36m$(ALIAS).$(DOMAIN_BACKEND)\033[0m \033[90m→ $(HOST_BUB).$(DOMAIN_BACKEND) (backend)\033[0m\n"
@@ -105,13 +127,13 @@ delete-service: ## Remove complete service (ALIAS=) - DNS + HAProxy (reverse of 
 		exit 1; \
 	fi
 	@printf "\n\033[1;36m[1/4]\033[0m Frontend route \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m\n"
-	@node cli.js haproxy:route-delete --frontend $(HAPROXY_FRONTEND) --acl $(ALIAS) 2>/dev/null || true
+	@$(CLI) haproxy:route-delete --frontend $(HAPROXY_FRONTEND) --acl $(ALIAS) 2>/dev/null || true
 	@printf "\n\033[1;36m[2/4]\033[0m HAProxy backend \033[36m$(ALIAS)\033[0m\n"
-	@node cli.js haproxy:delete --name $(ALIAS) 2>/dev/null || true
+	@$(CLI) haproxy:delete --name $(ALIAS) 2>/dev/null || true
 	@printf "\n\033[1;36m[3/4]\033[0m DNS alias \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m → \033[36m$(HOST_LAMOLABS).$(DOMAIN_FRONTEND)\033[0m \033[90m(frontend)\033[0m\n"
-	@node cli.js alias:delete --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) 2>/dev/null || true
+	@$(CLI) alias:delete --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) 2>/dev/null || true
 	@printf "\n\033[1;36m[4/4]\033[0m DNS alias \033[36m$(ALIAS).$(DOMAIN_BACKEND)\033[0m → \033[36m$(HOST_BUB).$(DOMAIN_BACKEND)\033[0m \033[90m(backend)\033[0m\n"
-	@node cli.js alias:delete --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) 2>/dev/null || true
+	@$(CLI) alias:delete --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) 2>/dev/null || true
 	@printf "\n\033[1;32m✓ Service \033[1;37m$(ALIAS)\033[1;32m removed!\033[0m\n"
 	@printf "\n  \033[1mDeleted:\033[0m\n"
 	@printf "    \033[90m-\033[0m Frontend ACL+Action: \033[36m$(ALIAS).$(DOMAIN_FRONTEND)\033[0m\n"
@@ -123,14 +145,14 @@ list-hosts: ## Show valid HOST_BUB and HOST_LAMOLABS values (queries live DNS)
 	@echo "Querying pfSense DNS for registered hosts..."
 	@echo ""
 	@echo "Backend hosts  (HOST_BUB candidates — $(DOMAIN_BACKEND) domain):"
-	@result=$$(node cli.js list 2>/dev/null \
+	@result=$$($(CLI) list 2>/dev/null \
 	  | sed 's/\x1b\[[0-9;]*m//g' \
 	  | grep -E '^\s*[0-9]+\.' | grep '\.$(DOMAIN_BACKEND)' \
 	  | sed 's/.*[0-9]\+\. //; s/\.$(DOMAIN_BACKEND)//'); \
 	if [ -z "$$result" ]; then echo "  (none found)"; else echo "$$result" | sed 's/^/  /'; fi
 	@echo ""
 	@echo "Frontend hosts (HOST_LAMOLABS candidates — $(DOMAIN_FRONTEND) domain):"
-	@result=$$(node cli.js list 2>/dev/null \
+	@result=$$($(CLI) list 2>/dev/null \
 	  | sed 's/\x1b\[[0-9;]*m//g' \
 	  | grep -E '^\s*[0-9]+\.' | grep '\.$(DOMAIN_FRONTEND)' \
 	  | sed 's/.*[0-9]\+\. //; s/\.$(DOMAIN_FRONTEND)//'); \
@@ -139,7 +161,7 @@ list-hosts: ## Show valid HOST_BUB and HOST_LAMOLABS values (queries live DNS)
 ##@ DNS
 
 dns-list: ## List all DNS entries
-	@node cli.js list 2>/dev/null
+	@$(CLI) list 2>/dev/null
 
 dns-add: ## Add DNS entry (HOST= DOMAIN= IP= [DESC=])
 	@if [ -z "$(HOST)" ] || [ -z "$(DOMAIN)" ] || [ -z "$(IP)" ]; then \
@@ -147,7 +169,7 @@ dns-add: ## Add DNS entry (HOST= DOMAIN= IP= [DESC=])
 		echo "Usage: make dns-add HOST=myserver DOMAIN=local.lan IP=192.168.1.100 [DESC='Description']"; \
 		exit 1; \
 	fi
-	@node cli.js add --host $(HOST) --domain $(DOMAIN) --ip $(IP) $(if $(DESC),--description "$(DESC)") 2>/dev/null
+	@$(CLI) add --host $(HOST) --domain $(DOMAIN) --ip $(IP) $(if $(DESC),--description "$(DESC)") 2>/dev/null
 
 dns-update: ## Update DNS entry (HOST= DOMAIN= [IP=] [DESC=])
 	@if [ -z "$(HOST)" ] || [ -z "$(DOMAIN)" ]; then \
@@ -155,7 +177,7 @@ dns-update: ## Update DNS entry (HOST= DOMAIN= [IP=] [DESC=])
 		echo "Usage: make dns-update HOST=myserver DOMAIN=local.lan [IP=192.168.1.101] [DESC='Description']"; \
 		exit 1; \
 	fi
-	@node cli.js update --host $(HOST) --domain $(DOMAIN) $(if $(IP),--ip $(IP)) $(if $(DESC),--description "$(DESC)") 2>/dev/null
+	@$(CLI) update --host $(HOST) --domain $(DOMAIN) $(if $(IP),--ip $(IP)) $(if $(DESC),--description "$(DESC)") 2>/dev/null
 
 dns-delete: ## Delete DNS entry (HOST= DOMAIN=)
 	@if [ -z "$(HOST)" ] || [ -z "$(DOMAIN)" ]; then \
@@ -163,7 +185,7 @@ dns-delete: ## Delete DNS entry (HOST= DOMAIN=)
 		echo "Usage: make dns-delete HOST=myserver DOMAIN=local.lan"; \
 		exit 1; \
 	fi
-	@node cli.js delete --host $(HOST) --domain $(DOMAIN) 2>/dev/null
+	@$(CLI) delete --host $(HOST) --domain $(DOMAIN) 2>/dev/null
 
 dns-alias-add: ## Add DNS alias (HOST= DOMAIN= ALIAS= ALIAS_DOMAIN= [DESC=])
 	@if [ -z "$(HOST)" ] || [ -z "$(DOMAIN)" ] || [ -z "$(ALIAS)" ] || [ -z "$(ALIAS_DOMAIN)" ]; then \
@@ -171,7 +193,7 @@ dns-alias-add: ## Add DNS alias (HOST= DOMAIN= ALIAS= ALIAS_DOMAIN= [DESC=])
 		echo "Usage: make dns-alias-add HOST=myserver DOMAIN=local.lan ALIAS=www ALIAS_DOMAIN=local.lan [DESC='Description']"; \
 		exit 1; \
 	fi
-	@node cli.js alias:add --host $(HOST) --domain $(DOMAIN) --alias-host $(ALIAS) --alias-domain $(ALIAS_DOMAIN) $(if $(DESC),--description "$(DESC)") 2>/dev/null
+	@$(CLI) alias:add --host $(HOST) --domain $(DOMAIN) --alias-host $(ALIAS) --alias-domain $(ALIAS_DOMAIN) $(if $(DESC),--description "$(DESC)") 2>/dev/null
 
 dns-alias-delete: ## Delete DNS alias (HOST= DOMAIN= ALIAS= ALIAS_DOMAIN=)
 	@if [ -z "$(HOST)" ] || [ -z "$(DOMAIN)" ] || [ -z "$(ALIAS)" ] || [ -z "$(ALIAS_DOMAIN)" ]; then \
@@ -179,7 +201,7 @@ dns-alias-delete: ## Delete DNS alias (HOST= DOMAIN= ALIAS= ALIAS_DOMAIN=)
 		echo "Usage: make dns-alias-delete HOST=myserver DOMAIN=local.lan ALIAS=www ALIAS_DOMAIN=local.lan"; \
 		exit 1; \
 	fi
-	@node cli.js alias:delete --host $(HOST) --domain $(DOMAIN) --alias-host $(ALIAS) --alias-domain $(ALIAS_DOMAIN) 2>/dev/null
+	@$(CLI) alias:delete --host $(HOST) --domain $(DOMAIN) --alias-host $(ALIAS) --alias-domain $(ALIAS_DOMAIN) 2>/dev/null
 
 # Usage: make add-dual-alias ALIAS=myapp DESC="My App - https://github.com/..."
 add-dual-alias: ## Add alias to both DOMAIN_BACKEND and DOMAIN_FRONTEND (ALIAS= DESC=)
@@ -189,14 +211,14 @@ add-dual-alias: ## Add alias to both DOMAIN_BACKEND and DOMAIN_FRONTEND (ALIAS= 
 		exit 1; \
 	fi
 	@echo "Adding $(ALIAS) alias to $(HOST_BUB).$(DOMAIN_BACKEND)..."
-	@node cli.js alias:add --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) --description "$(DESC)" 2>/dev/null
+	@$(CLI) alias:add --host $(HOST_BUB) --domain $(DOMAIN_BACKEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_BACKEND) --description "$(DESC)" 2>/dev/null
 	@echo "Adding $(ALIAS) alias to $(HOST_LAMOLABS).$(DOMAIN_FRONTEND)..."
-	@node cli.js alias:add --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) --description "$(DESC)" 2>/dev/null
+	@$(CLI) alias:add --host $(HOST_LAMOLABS) --domain $(DOMAIN_FRONTEND) --alias-host $(ALIAS) --alias-domain $(DOMAIN_FRONTEND) --description "$(DESC)" 2>/dev/null
 
 ##@ HAProxy
 
 haproxy-list: ## List all HAProxy backends
-	@node cli.js haproxy:list 2>/dev/null
+	@$(CLI) haproxy:list 2>/dev/null
 
 haproxy-add: ## Add HAProxy backend (NAME= SERVER= PORT=)
 	@if [ -z "$(NAME)" ] || [ -z "$(SERVER)" ] || [ -z "$(PORT)" ]; then \
@@ -204,7 +226,7 @@ haproxy-add: ## Add HAProxy backend (NAME= SERVER= PORT=)
 		echo "Usage: make haproxy-add NAME=backend-name SERVER=server.domain.com PORT=8080"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:add --name $(NAME) --server-name $(SERVER) --server-address $(SERVER) --server-port $(PORT) $(if $(filter true,$(SSL)),--ssl) 2>/dev/null
+	@$(CLI) haproxy:add --name $(NAME) --server-name $(SERVER) --server-address $(SERVER) --server-port $(PORT) $(if $(filter true,$(SSL)),--ssl) 2>/dev/null
 
 haproxy-delete: ## Delete HAProxy backend (NAME=)
 	@if [ -z "$(NAME)" ]; then \
@@ -212,10 +234,10 @@ haproxy-delete: ## Delete HAProxy backend (NAME=)
 		echo "Usage: make haproxy-delete NAME=backend-name"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:delete --name $(NAME) 2>/dev/null
+	@$(CLI) haproxy:delete --name $(NAME) 2>/dev/null
 
 haproxy-frontend-list: ## List HAProxy frontends (FILTER= optional)
-	@node cli.js haproxy:frontend-list $(if $(FILTER),--filter $(FILTER)) 2>/dev/null
+	@$(CLI) haproxy:frontend-list $(if $(FILTER),--filter $(FILTER)) 2>/dev/null
 
 haproxy-frontend-add: ## Create HAProxy frontend (NAME= BIND= [MODE=http] [CERT=])
 	@if [ -z "$(NAME)" ] || [ -z "$(BIND)" ]; then \
@@ -223,7 +245,7 @@ haproxy-frontend-add: ## Create HAProxy frontend (NAME= BIND= [MODE=http] [CERT=
 		echo "Usage: make haproxy-frontend-add NAME=my-frontend BIND=0.0.0.0:443 [MODE=http] [CERT=my-cert]"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:frontend-add --name $(NAME) --bind $(BIND) $(if $(MODE),--mode $(MODE)) $(if $(CERT),--cert $(CERT)) 2>/dev/null
+	@$(CLI) haproxy:frontend-add --name $(NAME) --bind $(BIND) $(if $(MODE),--mode $(MODE)) $(if $(CERT),--cert $(CERT)) 2>/dev/null
 
 haproxy-frontend-delete: ## Delete HAProxy frontend (NAME=)
 	@if [ -z "$(NAME)" ]; then \
@@ -231,7 +253,7 @@ haproxy-frontend-delete: ## Delete HAProxy frontend (NAME=)
 		echo "Usage: make haproxy-frontend-delete NAME=my-frontend"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:frontend-delete --name $(NAME) 2>/dev/null
+	@$(CLI) haproxy:frontend-delete --name $(NAME) 2>/dev/null
 
 haproxy-frontend-cert: ## Assign/swap SSL cert on a frontend (NAME= CERT=)
 	@if [ -z "$(NAME)" ] || [ -z "$(CERT)" ]; then \
@@ -239,16 +261,16 @@ haproxy-frontend-cert: ## Assign/swap SSL cert on a frontend (NAME= CERT=)
 		echo "Usage: make haproxy-frontend-cert NAME=my-frontend CERT=my-wildcard-cert"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:frontend-cert --name $(NAME) --cert $(CERT) 2>/dev/null
+	@$(CLI) haproxy:frontend-cert --name $(NAME) --cert $(CERT) 2>/dev/null
 
 haproxy-use-dns: ## Dry-run by default: show which backend IPs would convert to .bub.lan hostnames (APPLY=true to apply, NAME= to scope)
-	@node cli.js haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
+	@$(CLI) haproxy:use-dns $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
 
 haproxy-use-ip: ## Dry-run by default: show which backend hostnames would convert to static IPs (APPLY=true to apply, NAME= to scope)
-	@node cli.js haproxy:use-ip $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
+	@$(CLI) haproxy:use-ip $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
 
 haproxy-disable-resolver: ## Clear resolver config on backend servers (APPLY=true to apply, NAME= to scope)
-	@node cli.js haproxy:disable-resolver $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
+	@$(CLI) haproxy:disable-resolver $(if $(filter true,$(APPLY)),--apply) $(if $(NAME),--name $(NAME)) 2>/dev/null
 
 haproxy-inspect: ## Dump raw JSON for a named backend and its server entries (NAME= required)
 	@if [ -z "$(NAME)" ]; then \
@@ -256,7 +278,7 @@ haproxy-inspect: ## Dump raw JSON for a named backend and its server entries (NA
 		echo "Usage: make haproxy-inspect NAME=my-backend"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:inspect --name $(NAME) 2>/dev/null
+	@$(CLI) haproxy:inspect --name $(NAME) 2>/dev/null
 
 CONNECT_TIMEOUT ?=
 SERVER_TIMEOUT  ?=
@@ -268,17 +290,17 @@ haproxy-set-timeouts: ## Set backend timeouts (NAME= required; CONNECT_TIMEOUT= 
 		echo "Usage: make haproxy-set-timeouts NAME=mybackend TUNNEL_TIMEOUT=3600000"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:set-timeouts --name $(NAME) \
+	@$(CLI) haproxy:set-timeouts --name $(NAME) \
 		$(if $(CONNECT_TIMEOUT),--connect-timeout $(CONNECT_TIMEOUT)) \
 		$(if $(SERVER_TIMEOUT),--server-timeout $(SERVER_TIMEOUT)) \
 		$(if $(TUNNEL_TIMEOUT),--tunnel-timeout $(TUNNEL_TIMEOUT)) \
 		2>/dev/null
 
 haproxy-apply: ## Apply pending HAProxy config changes
-	@node cli.js haproxy:apply 2>/dev/null
+	@$(CLI) haproxy:apply 2>/dev/null
 
 haproxy-restart: ## Restart the HAProxy service
-	@node cli.js haproxy:restart 2>/dev/null
+	@$(CLI) haproxy:restart 2>/dev/null
 
 FRONTEND   ?= $(HAPROXY_FRONTEND)
 ROUTE_HOST ?=
@@ -290,7 +312,7 @@ haproxy-route-add: ## Add frontend ACL+route to a backend (ACL= ROUTE_HOST= BACK
 		echo "Usage: make haproxy-route-add ACL=myapp ROUTE_HOST=myapp.lamolabs.org BACKEND=myapp"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:route-add --frontend "$(FRONTEND)" --acl "$(ACL)" --hostname "$(ROUTE_HOST)" --backend "$(BACKEND)" 2>/dev/null
+	@$(CLI) haproxy:route-add --frontend "$(FRONTEND)" --acl "$(ACL)" --hostname "$(ROUTE_HOST)" --backend "$(BACKEND)" 2>/dev/null
 
 haproxy-route-delete: ## Remove a frontend ACL+route (ACL= [FRONTEND=HomePrivateServers])
 	@if [ -z "$(ACL)" ]; then \
@@ -298,7 +320,7 @@ haproxy-route-delete: ## Remove a frontend ACL+route (ACL= [FRONTEND=HomePrivate
 		echo "Usage: make haproxy-route-delete ACL=myapp"; \
 		exit 1; \
 	fi
-	@node cli.js haproxy:route-delete --frontend "$(FRONTEND)" --acl "$(ACL)" 2>/dev/null
+	@$(CLI) haproxy:route-delete --frontend "$(FRONTEND)" --acl "$(ACL)" 2>/dev/null
 
 ##@ WireGuard / ProtonVPN
 
@@ -321,7 +343,7 @@ define _wg_flags
 endef
 
 wg-status: ## Show WireGuard tunnel and peer status
-	@node cli.js wg:status
+	@$(CLI) wg:status
 
 wg-provision: ## Full zero-touch ProtonVPN setup (CONF= KILL_SWITCH='ip/32 ...' [TUNNEL=] [IFACE=] [LISTEN_PORT=] [MONITOR_IP=] [LAN_SUBNET=])
 	@if [ -z "$(CONF)" ]; then \
@@ -329,7 +351,7 @@ wg-provision: ## Full zero-touch ProtonVPN setup (CONF= KILL_SWITCH='ip/32 ...' 
 		echo "Usage: make wg-provision CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'"; \
 		exit 1; \
 	fi
-	@node cli.js wg:provision "$(CONF)" $(call _wg_flags)
+	@$(CLI) wg:provision "$(CONF)" $(call _wg_flags)
 
 wg-apply: wg-provision ## Alias for wg-provision (backward compat)
 
@@ -339,10 +361,10 @@ wg-dry-run: ## Preview wg-provision without applying changes (same options as wg
 		echo "Usage: make wg-dry-run CONF=~/Downloads/protonvpn.conf KILL_SWITCH='192.168.7.6/32'"; \
 		exit 1; \
 	fi
-	@node cli.js wg:provision "$(CONF)" $(call _wg_flags) --dry-run
+	@$(CLI) wg:provision "$(CONF)" $(call _wg_flags) --dry-run
 
 wg-teardown: ## Remove WireGuard rules, NAT, gateway, and peer ([TUNNEL=ProtonVPN01] [IFACE=PROTONVPN] [GW=] [KS_ALIAS=])
-	@node cli.js wg:teardown \
+	@$(CLI) wg:teardown \
 	  --tunnel "$(TUNNEL)" \
 	  --iface-name "$(IFACE)" \
 	  $(if $(GW),--gateway-name "$(GW)") \
@@ -371,13 +393,13 @@ IP            ?=
 HOSTNAME_VAL  ?=
 
 nordvpn-servers: ## List recommended NordVPN WireGuard servers ([COUNTRY_ID=228])
-	@node cli.js nordvpn:servers --country-id "$(COUNTRY_ID)"
+	@$(CLI) nordvpn:servers --country-id "$(COUNTRY_ID)"
 
 nordvpn-creds: ## Fetch NordVPN nordlynx_private_key and VPN credentials ([NORDVPN_TOKEN=] falls back to .env)
-	@node cli.js nordvpn:creds $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)")
+	@$(CLI) nordvpn:creds $(if $(NORDVPN_TOKEN),--token "$(NORDVPN_TOKEN)")
 
 nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([COUNTRY_ID=228] [NORDVPN_TUNNEL=NordVPNWG01] [GW_NAME=NORDVPNWG_GW] [DRY_RUN=1] [FORCE=1])
-	@node cli.js nordvpn:rotate-wg \
+	@$(CLI) nordvpn:rotate-wg \
 	  --country-id "$(COUNTRY_ID)" \
 	  --tunnel "$(NORDVPN_TUNNEL)" \
 	  $(if $(GW_NAME),--gateway-name "$(GW_NAME)") \
@@ -385,7 +407,7 @@ nordvpn-rotate-wg: ## Rotate NordVPN WireGuard to lowest-load server ([COUNTRY_I
 	  $(if $(FORCE),--force)
 
 nordvpn-teardown-wg: ## Remove NordVPN WireGuard rules, NAT, gateway, peer ([NORDVPN_TUNNEL=NordVPNWG01] [IFACE=NORDVPNWG] [GW=] [DELETE_TUNNEL=1])
-	@node cli.js nordvpn:teardown-wg \
+	@$(CLI) nordvpn:teardown-wg \
 	  --tunnel "$(NORDVPN_TUNNEL)" \
 	  $(if $(IFACE),--iface-name "$(IFACE)") \
 	  $(if $(GW),--gateway-name "$(GW)") \
@@ -414,7 +436,7 @@ RULE_TAG   ?=
 RULE_DESC  ?=
 
 fw-rule-list: ## List firewall rules ([FILTER=] [RULE_IFACE=lan|wan] [RULE_TYPE=pass|block])
-	@node cli.js fw-rule:list \
+	@$(CLI) fw-rule:list \
 	  $(if $(FILTER),--filter "$(FILTER)") \
 	  $(if $(RULE_IFACE),--interface "$(RULE_IFACE)") \
 	  $(if $(RULE_TYPE),--type "$(RULE_TYPE)")
@@ -425,7 +447,7 @@ fw-rule-add: ## Add a firewall rule (RULE_TYPE= RULE_IFACE= [RULE_SRC=any] [RULE
 		echo "Usage: make fw-rule-add RULE_TYPE=pass RULE_IFACE=lan RULE_SRC=MyAlias RULE_GW=NordVPN_WG_GWGrp RULE_DESC='My rule'"; \
 		exit 1; \
 	fi
-	@node cli.js fw-rule:add \
+	@$(CLI) fw-rule:add \
 	  --type "$(RULE_TYPE)" \
 	  --interface "$(RULE_IFACE)" \
 	  --source "$(RULE_SRC)" \
@@ -445,7 +467,7 @@ fw-rule-delete: ## Delete a firewall rule (RULE_ID= or RULE_DESC=)
 		echo "       make fw-rule-delete RULE_DESC='my rule description'"; \
 		exit 1; \
 	fi
-	@node cli.js fw-rule:delete \
+	@$(CLI) fw-rule:delete \
 	  $(if $(RULE_ID),--id "$(RULE_ID)") \
 	  $(if $(RULE_DESC),--description "$(RULE_DESC)")
 
@@ -454,7 +476,7 @@ fw-rule-update: ## Update a firewall rule (RULE_ID= or RULE_DESC=, then any of: 
 		echo "Error: RULE_ID or RULE_DESC is required"; \
 		exit 1; \
 	fi
-	@node cli.js fw-rule:update \
+	@$(CLI) fw-rule:update \
 	  $(if $(RULE_ID),--id "$(RULE_ID)") \
 	  $(if $(RULE_DESC),--description "$(RULE_DESC)") \
 	  $(if $(RULE_TYPE),--type "$(RULE_TYPE)") \
@@ -469,7 +491,7 @@ fw-rule-update: ## Update a firewall rule (RULE_ID= or RULE_DESC=, then any of: 
 ##@ NAT Port Forwards
 
 nat-list: ## List NAT port forward rules ([FILTER=])
-	@node cli.js nat:list $(if $(FILTER),--filter "$(FILTER)")
+	@$(CLI) nat:list $(if $(FILTER),--filter "$(FILTER)")
 
 nat-add: ## Add a NAT port forward rule (NAT_PORT= NAT_TARGET= [NAT_PROTO=tcp/udp] [NAT_IFACE=wan] [NAT_LOCAL_PORT=] [NAT_DESC=] [ADD_FW_RULE=1])
 	@if [ -z "$(NAT_PORT)" ] || [ -z "$(NAT_TARGET)" ]; then \
@@ -477,7 +499,7 @@ nat-add: ## Add a NAT port forward rule (NAT_PORT= NAT_TARGET= [NAT_PROTO=tcp/ud
 		echo "Usage: make nat-add NAT_PORT=51413 NAT_TARGET=192.168.13.10 NAT_DESC='Transmission' ADD_FW_RULE=1"; \
 		exit 1; \
 	fi
-	@node cli.js nat:add \
+	@$(CLI) nat:add \
 	  --dest-port "$(NAT_PORT)" \
 	  --target "$(NAT_TARGET)" \
 	  $(if $(NAT_PROTO),--protocol "$(NAT_PROTO)") \
@@ -493,7 +515,7 @@ nat-delete: ## Delete a NAT port forward rule (NAT_ID= or NAT_DESC=)
 		echo "       make nat-delete NAT_DESC='Transmission torrent client'"; \
 		exit 1; \
 	fi
-	@node cli.js nat:delete \
+	@$(CLI) nat:delete \
 	  $(if $(NAT_ID),--id "$(NAT_ID)") \
 	  $(if $(NAT_DESC),--description "$(NAT_DESC)")
 
@@ -502,7 +524,7 @@ nat-delete: ## Delete a NAT port forward rule (NAT_ID= or NAT_DESC=)
 # Alias name for kill-switch hosts vars
 
 fw-alias-list: ## List pfSense firewall aliases ([FILTER=])
-	@node cli.js fw-alias:list $(if $(FILTER),--filter "$(FILTER)")
+	@$(CLI) fw-alias:list $(if $(FILTER),--filter "$(FILTER)")
 
 fw-alias-create: ## Create or update a firewall alias (NAME= [TYPE=host] [HOST='ip1 ip2'] [DESC=])
 	@if [ -z "$(NAME)" ]; then \
@@ -510,7 +532,7 @@ fw-alias-create: ## Create or update a firewall alias (NAME= [TYPE=host] [HOST='
 		echo "Usage: make fw-alias-create NAME=NordVPN_KS_Hosts HOST='192.168.7.6' DESC='NordVPN kill-switch hosts'"; \
 		exit 1; \
 	fi
-	@node cli.js fw-alias:create --name "$(NAME)" --type "$(TYPE)" \
+	@$(CLI) fw-alias:create --name "$(NAME)" --type "$(TYPE)" \
 	  $(if $(DESC),--description "$(DESC)") \
 	  $(foreach h,$(HOST),--host $(h))
 
@@ -520,7 +542,7 @@ fw-alias-add-host: ## Add a host to a firewall alias (NAME= HOST= [DETAIL=])
 		echo "Usage: make fw-alias-add-host NAME=NordVPN_KS_Hosts HOST=192.168.7.7 DETAIL='pi-vpn2'"; \
 		exit 1; \
 	fi
-	@node cli.js fw-alias:add-host --name "$(NAME)" --host "$(HOST)" $(if $(DETAIL),--detail "$(DETAIL)")
+	@$(CLI) fw-alias:add-host --name "$(NAME)" --host "$(HOST)" $(if $(DETAIL),--detail "$(DETAIL)")
 
 fw-alias-remove-host: ## Remove a host from a firewall alias (NAME= HOST=)
 	@if [ -z "$(NAME)" ] || [ -z "$(HOST)" ]; then \
@@ -528,7 +550,7 @@ fw-alias-remove-host: ## Remove a host from a firewall alias (NAME= HOST=)
 		echo "Usage: make fw-alias-remove-host NAME=NordVPN_KS_Hosts HOST=192.168.7.7"; \
 		exit 1; \
 	fi
-	@node cli.js fw-alias:remove-host --name "$(NAME)" --host "$(HOST)"
+	@$(CLI) fw-alias:remove-host --name "$(NAME)" --host "$(HOST)"
 
 fw-alias-delete: ## Delete a firewall alias (NAME=)
 	@if [ -z "$(NAME)" ]; then \
@@ -536,7 +558,7 @@ fw-alias-delete: ## Delete a firewall alias (NAME=)
 		echo "Usage: make fw-alias-delete NAME=NordVPN_KS_Hosts"; \
 		exit 1; \
 	fi
-	@node cli.js fw-alias:delete --name "$(NAME)"
+	@$(CLI) fw-alias:delete --name "$(NAME)"
 
 ##@ Bulk Operations
 
@@ -547,18 +569,18 @@ bulk-import: ## Import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RU
 		echo "       make bulk-import BULK_FILE=services.json DRY_RUN=1"; \
 		exit 1; \
 	fi
-	@node cli.js bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
+	@$(CLI) bulk:import "$(BULK_FILE)" $(if $(DRY_RUN),--dry-run)
 
 OUT           ?= snapshot.json
 
 bulk-export: ## Export DNS + HAProxy config to JSON ([OUT=snapshot.json])
-	@node cli.js bulk:export --output "$(OUT)"
+	@$(CLI) bulk:export --output "$(OUT)"
 	@echo "Re-import with: make bulk-import BULK_FILE=$(OUT)"
 
 ##@ DHCP
 
 dhcp-list: ## List DHCP static mappings ([IFACE=lan] [FILTER=])
-	@node cli.js dhcp:list \
+	@$(CLI) dhcp:list \
 	  $(if $(IFACE),--interface "$(IFACE)") \
 	  $(if $(FILTER),--filter "$(FILTER)")
 
@@ -568,7 +590,7 @@ dhcp-add: ## Add a DHCP static mapping (IFACE= MAC= [IP=] [HOSTNAME_VAL=] [DESC=
 		echo "Usage: make dhcp-add IFACE=lan MAC=aa:bb:cc:dd:ee:ff IP=192.168.7.50 HOSTNAME_VAL=mydevice"; \
 		exit 1; \
 	fi
-	@node cli.js dhcp:add \
+	@$(CLI) dhcp:add \
 	  --interface "$(IFACE)" \
 	  --mac "$(MAC)" \
 	  $(if $(IP),--ip "$(IP)") \
@@ -581,7 +603,7 @@ dhcp-update: ## Update a DHCP static mapping (IFACE= MAC= [IP=] [HOSTNAME_VAL=] 
 		echo "Error: IFACE and MAC are required"; \
 		exit 1; \
 	fi
-	@node cli.js dhcp:update \
+	@$(CLI) dhcp:update \
 	  --interface "$(IFACE)" \
 	  --mac "$(MAC)" \
 	  $(if $(IP),--ip "$(IP)") \
@@ -595,7 +617,7 @@ dhcp-delete: ## Delete a DHCP static mapping (IFACE= MAC=)
 		echo "Usage: make dhcp-delete IFACE=lan MAC=aa:bb:cc:dd:ee:ff"; \
 		exit 1; \
 	fi
-	@node cli.js dhcp:delete --interface "$(IFACE)" --mac "$(MAC)"
+	@$(CLI) dhcp:delete --interface "$(IFACE)" --mac "$(MAC)"
 
 cert-renew-wildcard: ## Renew wildcard cert via acme.sh and import into pfSense (DOMAIN= CERT_NAME= [DNS_HOOK=dns_cf])
 	@if [ -z "$(DOMAIN)" ] || [ -z "$(CERT_NAME)" ]; then \
@@ -609,12 +631,12 @@ cert-renew-wildcard: ## Renew wildcard cert via acme.sh and import into pfSense 
 ##@ Diagnostics
 
 optics-show: ## Show SFP+ transceiver DDM diagnostics ([IFACE=igb0])
-	@node cli.js optics:show $(if $(IFACE),--interface "$(IFACE)")
+	@$(CLI) optics:show $(if $(IFACE),--interface "$(IFACE)")
 
 ##@ Certificates
 
 cert-list: ## List certificates with expiry info ([FILTER=] [EXPIRING=<days>])
-	@node cli.js cert:list \
+	@$(CLI) cert:list \
 	  $(if $(FILTER),--filter "$(FILTER)") \
 	  $(if $(EXPIRING),--expiring "$(EXPIRING)")
 
@@ -624,7 +646,7 @@ cert-import: ## Import a cert+key pair (CERT_NAME= CERT_FILE= KEY_FILE= [CERT_TY
 		echo "Usage: make cert-import CERT_NAME=mysite CERT_FILE=mysite.crt KEY_FILE=mysite.key"; \
 		exit 1; \
 	fi
-	@node cli.js cert:import \
+	@$(CLI) cert:import \
 	  --name "$(CERT_NAME)" \
 	  --cert "$(CERT_FILE)" \
 	  --key  "$(KEY_FILE)" \
@@ -637,12 +659,12 @@ cert-delete: ## Delete a certificate (CERT_NAME= or CERT_REFID=)
 		echo "       make cert-delete CERT_REFID=6789abc123"; \
 		exit 1; \
 	fi
-	@node cli.js cert:delete \
+	@$(CLI) cert:delete \
 	  $(if $(CERT_NAME),--name "$(CERT_NAME)") \
 	  $(if $(CERT_REFID),--refid "$(CERT_REFID)")
 
 cert-check: ## Exit 1 if any cert expires within EXPIRING days — for monitoring (default: 30)
-	@node cli.js cert:check --expiring "$(EXPIRING)"
+	@$(CLI) cert:check --expiring "$(EXPIRING)"
 
 CERT_CHECK_SCHEDULE ?= 0 8 * * *
 CERT_CHECK_LOG      ?= /tmp/pfsense-cert-check.log
@@ -667,14 +689,14 @@ cert-renew: ## Renew an internally-generated certificate (CERT_NAME= or CERT_REF
 		echo "Usage: make cert-renew CERT_NAME=mysite"; \
 		exit 1; \
 	fi
-	@node cli.js cert:renew \
+	@$(CLI) cert:renew \
 	  $(if $(CERT_NAME),--name "$(CERT_NAME)") \
 	  $(if $(CERT_REFID),--refid "$(CERT_REFID)")
 
 ##@ Configuration History
 
 config-history: ## List pfSense config history revisions ([LIMIT=N])
-	@node cli.js config:history $(if $(LIMIT),--limit "$(LIMIT)")
+	@$(CLI) config:history $(if $(LIMIT),--limit "$(LIMIT)")
 
 config-history-prune: ## Prune old config history revisions (OLDER_THAN=<days> or KEEP_LAST=<n>)
 	@if [ -z "$(OLDER_THAN)" ] && [ -z "$(KEEP_LAST)" ]; then \
@@ -683,7 +705,7 @@ config-history-prune: ## Prune old config history revisions (OLDER_THAN=<days> o
 		echo "       make config-history-prune KEEP_LAST=20    # keep 20 most recent, delete rest"; \
 		exit 1; \
 	fi
-	@node cli.js config:history-prune \
+	@$(CLI) config:history-prune \
 	  $(if $(OLDER_THAN),--older-than "$(OLDER_THAN)") \
 	  $(if $(KEEP_LAST),--keep-last "$(KEEP_LAST)")
 
@@ -711,44 +733,48 @@ KEEP_LAST       ?= 30
 BACKUP_SCHEDULE ?= 0 * * * *
 
 backup-usb-status: ## Check USB device, mount state, and existing backup files on pfSense
-	@node cli.js backup:status --usb-dev "$(USB_DEV)"
+	@$(CLI) backup:status --usb-dev "$(USB_DEV)"
 
 backup-usb-now: ## Run a config backup to USB immediately ([USB_DEV=da0s1] [KEEP_LAST=30])
-	@node cli.js backup:now --usb-dev "$(USB_DEV)" --keep-last "$(KEEP_LAST)"
+	@$(CLI) backup:now --usb-dev "$(USB_DEV)" --keep-last "$(KEEP_LAST)"
 
 backup-usb-install: ## Deploy backup script to USB and install cron on pfSense ([USB_DEV=da0s1] [KEEP_LAST=30] [BACKUP_SCHEDULE="0 * * * *"])
-	@node cli.js backup:install \
+	@$(CLI) backup:install \
 	  --usb-dev "$(USB_DEV)" \
 	  --keep-last "$(KEEP_LAST)" \
 	  --schedule "$(BACKUP_SCHEDULE)"
 
 backup-usb-cache-pkgs: ## Download RESTAPI pkg + rsync to USB pkgs/ for offline recovery ([USB_DEV=da0s1])
-	@node cli.js backup:cache-pkgs --usb-dev "$(USB_DEV)"
+	@$(CLI) backup:cache-pkgs --usb-dev "$(USB_DEV)"
 
 backup-usb-readme: ## Refresh RECOVERY.md and install-api.sh on the USB ([USB_DEV=da0s1] [KEEP_LAST=30] [BACKUP_SCHEDULE="0 * * * *"])
-	@node cli.js backup:readme \
+	@$(CLI) backup:readme \
 	  --usb-dev "$(USB_DEV)" \
 	  --keep-last "$(KEEP_LAST)" \
 	  --schedule "$(BACKUP_SCHEDULE)"
 
 ##@ Infrastructure
 
-build: ## Build the Docker image
-	docker-compose build
+build: ## Build the container image
+	$(if $(CONTAINER_RUNTIME),$(CONTAINER_RUNTIME) build -t pfsense-cli .,echo "No container runtime found (podman/docker) — nothing to build")
 
 test-api: ## Test pfSense API connectivity
 	@echo "Testing pfSense API connection..."
-	@docker-compose run --rm --entrypoint sh pfsense-cli -c 'echo "Host: $$PFSENSE_HOST" && echo "Testing API endpoint: $$PFSENSE_HOST/api/v2/system/api" && echo "" && apk add --quiet curl > /dev/null 2>&1 && RESPONSE=$$(curl -s -k -w "\n%{http_code}" -H "Authorization: $$PFSENSE_API_KEY $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/api) && HTTP_CODE=$$(echo "$$RESPONSE" | tail -n1) && BODY=$$(echo "$$RESPONSE" | head -n-1) && echo "$$BODY" | head -20 && echo "" && if [ "$$HTTP_CODE" = "200" ]; then echo "✓ API is accessible!"; else echo "✗ API returned HTTP $$HTTP_CODE"; echo ""; echo "The pfSense RESTAPI package is not installed."; echo "See INSTALL_API.md for installation instructions."; echo ""; echo "Quick install: SSH to pfSense and run:"; echo "  pkg install -y https://github.com/pfrest/pfSense-pkg-RESTAPI/releases/download/v2.7.2/pfSense-2.7.2-pkg-RESTAPI.pkg"; exit 1; fi'
+	@$(if $(CONTAINER_RUNTIME),\
+	  $(CONTAINER_RUNTIME) run --rm --env-file .env --entrypoint sh pfsense-cli -c 'echo "Host: $$PFSENSE_HOST" && echo "Testing API endpoint: $$PFSENSE_HOST/api/v2/system/api" && echo "" && apk add --quiet curl > /dev/null 2>&1 && RESPONSE=$$(curl -s -k -w "\n%{http_code}" -H "x-api-key: $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/api) && HTTP_CODE=$$(echo "$$RESPONSE" | tail -n1) && BODY=$$(echo "$$RESPONSE" | head -n-1) && echo "$$BODY" | head -20 && echo "" && if [ "$$HTTP_CODE" = "200" ]; then echo "✓ API is accessible!"; else echo "✗ API returned HTTP $$HTTP_CODE"; exit 1; fi',\
+	  echo "No container runtime found — cannot run test-api without podman or docker")
 
 check-version: ## Check pfSense version and API status
 	@echo "Checking pfSense version and available endpoints..."
-	@docker-compose run --rm --entrypoint sh pfsense-cli -c 'apk add --quiet curl > /dev/null 2>&1 && echo "Testing various API endpoints:" && echo "" && echo "1. Built-in API (pfSense 2.5+):" && curl -s -k -w " [HTTP %{http_code}]\n" -H "Authorization: $$PFSENSE_API_KEY $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/version -o /dev/null && echo "" && echo "2. Community API package:" && curl -s -k -w " [HTTP %{http_code}]\n" -H "Authorization: $$PFSENSE_API_KEY $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/api -o /dev/null && echo "" && echo "If both show 404, you need to install the API package."'
+	@$(if $(CONTAINER_RUNTIME),\
+	  $(CONTAINER_RUNTIME) run --rm --env-file .env --entrypoint sh pfsense-cli -c 'apk add --quiet curl > /dev/null 2>&1 && echo "Testing various API endpoints:" && echo "" && echo "1. Version:" && curl -s -k -w " [HTTP %{http_code}]\n" -H "x-api-key: $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/version -o /dev/null && echo "" && echo "2. API status:" && curl -s -k -w " [HTTP %{http_code}]\n" -H "x-api-key: $$PFSENSE_API_SECRET" $$PFSENSE_HOST/api/v2/system/api -o /dev/null',\
+	  echo "No container runtime found — cannot run check-version without podman or docker")
 
 cli-help: ## Show CLI command help (--help output)
-	@node cli.js --help
+	@$(CLI) --help
 
-clean: ## Clean up Docker resources
-	docker-compose down -v
+clean: ## Remove container image
+	$(if $(CONTAINER_RUNTIME),$(CONTAINER_RUNTIME) rmi pfsense-cli 2>/dev/null || true,echo "No container runtime found — nothing to clean")
 
 .DEFAULT:
 	@:
