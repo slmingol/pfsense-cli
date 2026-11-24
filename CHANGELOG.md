@@ -1,3 +1,9 @@
+## [1.15.16](https://github.com/slmingol/pfsense-cli/compare/v1.15.15...v1.15.16) (2026-11-24)
+
+### Documentation
+
+* update README for TLS env var, watchdog cron, Node 26 ([9b745bf](https://github.com/slmingol/pfsense-cli/commit/9b745bf0ce7a7f1429ab1c7c8f70f51c3a6c09b7))
+
 ## [1.15.15](https://github.com/slmingol/pfsense-cli/compare/v1.15.14...v1.15.15) (2026-11-05)
 
 ### Documentation
