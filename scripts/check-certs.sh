@@ -26,7 +26,16 @@ log() { printf '[%s] %s\n' "$(date '+%Y-%m-%d %H:%M:%S')" "$*" | tee -a "$LOG_FI
 
 log "Starting cert check (expiring within ${EXPIRING}d)"
 
-node "$PROJECT_ROOT/cli.js" cert:check --expiring "$EXPIRING" 2>&1 | tee -a "$LOG_FILE"
+# Detect runtime: podman > docker > node
+if command -v podman >/dev/null 2>&1; then
+  CLI="podman run --rm --env-file $PROJECT_ROOT/.env pfsense-cli"
+elif command -v docker >/dev/null 2>&1; then
+  CLI="docker run --rm --env-file $PROJECT_ROOT/.env pfsense-cli"
+else
+  CLI="node $PROJECT_ROOT/cli.js"
+fi
+
+$CLI cert:check --expiring "$EXPIRING" 2>&1 | tee -a "$LOG_FILE"
 EXIT_CODE=${PIPESTATUS[0]:-$?}
 
 if [ "$EXIT_CODE" -eq 0 ]; then
