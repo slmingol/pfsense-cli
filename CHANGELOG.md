@@ -1,3 +1,9 @@
+## [1.15.17](https://github.com/slmingol/pfsense-cli/compare/v1.15.16...v1.15.17) (2026-11-24)
+
+### Bug Fixes
+
+* **cert:** use certref field for renew API endpoint ([4c6be93](https://github.com/slmingol/pfsense-cli/commit/4c6be936ea55d63f3c3ba0171bc71686f3246020))
+
 ## [1.15.16](https://github.com/slmingol/pfsense-cli/compare/v1.15.15...v1.15.16) (2026-11-24)
 
 ### Documentation
