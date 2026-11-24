@@ -1,3 +1,9 @@
+## [1.16.0](https://github.com/slmingol/pfsense-cli/compare/v1.15.17...v1.16.0) (2026-11-24)
+
+### Features
+
+* **makefile:** auto-detect podman/docker, fall back to node ([c09982d](https://github.com/slmingol/pfsense-cli/commit/c09982dfd9aa9c99064d97c367f45fc386a9da42))
+
 ## [1.15.17](https://github.com/slmingol/pfsense-cli/compare/v1.15.16...v1.15.17) (2026-11-24)
 
 ### Bug Fixes
