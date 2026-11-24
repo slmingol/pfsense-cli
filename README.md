@@ -440,8 +440,8 @@ ProtonVPN WireGuard hits the same REKEY_AFTER_TIME=120s simultaneous-initiation 
 
 ```bash
 # Deploy the watchdog to pfSense (SSH as root):
-scp scripts/protonvpn-wg-watchdog.sh root@pfsense:/usr/local/bin/
-ssh root@pfsense "
+scp scripts/protonvpn-wg-watchdog.sh root@pfsense-rtr1.bub.lan:/usr/local/bin/
+ssh root@pfsense-rtr1.bub.lan "
   chmod +x /usr/local/bin/protonvpn-wg-watchdog.sh
   cat > /var/db/protonvpn-wg-peer.conf << 'EOF'
 PEER_PK=<server_pubkey>
@@ -450,10 +450,11 @@ ALLOWED_IPS=0.0.0.0/0,::/0
 EOF
   chmod 600 /var/db/protonvpn-wg-peer.conf
   date +%s > /var/db/protonvpn-wg-last-reset
-  echo '*/1 * * * * root /usr/local/bin/protonvpn-wg-watchdog.sh' \
-    > /etc/cron.d/protonvpn-wg-watchdog
+  crontab -l 2>/dev/null | { cat; echo '* * * * * /usr/local/bin/protonvpn-wg-watchdog.sh'; } | crontab -
 "
 ```
+
+> **pfSense upgrades wipe `/etc/cron.d/` files.** Use `crontab -l | ...` (root user crontab) instead. Verify after any pfSense upgrade: `ssh root@pfsense 'crontab -l | grep protonvpn'`.
 
 State files written to `/var/db/`:
 
@@ -545,8 +546,8 @@ NordVPN WireGuard (like most WireGuard implementations) hits a REKEY_AFTER_TIME=
 
 ```bash
 # Deploy the watchdog to pfSense (SSH as root):
-scp scripts/nordvpn-wg-watchdog.sh root@pfsense:/usr/local/bin/
-ssh root@pfsense "
+scp scripts/nordvpn-wg-watchdog.sh root@pfsense-rtr1.bub.lan:/usr/local/bin/
+ssh root@pfsense-rtr1.bub.lan "
   chmod +x /usr/local/bin/nordvpn-wg-watchdog.sh
   cat > /var/db/nordvpn-wg-peer.conf << 'EOF'
 PEER_PK=<server_pubkey>
@@ -555,10 +556,11 @@ ALLOWED_IPS=0.0.0.0/0,::/0
 EOF
   chmod 600 /var/db/nordvpn-wg-peer.conf
   date +%s > /var/db/nordvpn-wg-last-reset
-  echo '*/1 * * * * root /usr/local/bin/nordvpn-wg-watchdog.sh' \
-    > /etc/cron.d/nordvpn-wg-watchdog
+  crontab -l 2>/dev/null | { cat; echo '* * * * * /usr/local/bin/nordvpn-wg-watchdog.sh'; } | crontab -
 "
 ```
+
+> **pfSense upgrades wipe `/etc/cron.d/` files.** Use `crontab -l | ...` (root user crontab) instead — it persists in `config.xml` and survives upgrades. Verify after any pfSense upgrade: `ssh root@pfsense 'crontab -l | grep nordvpn'`.
 
 State files written to `/var/db/`:
 
@@ -1297,6 +1299,7 @@ make fw-rule-update          # Update a firewall rule field (RULE_ID= or RULE_DE
 make nat-list                # List NAT port forward rules ([FILTER=])
 make nat-add                 # Add a port forward (NAT_PORT= NAT_TARGET= [NAT_PROTO=tcp/udp] [NAT_LOCAL_PORT=] [NAT_DESC=] [ADD_FW_RULE=1])
 make nat-delete              # Delete a port forward (NAT_ID= or NAT_DESC=)
+make bulk-export             # Export current DNS + HAProxy config as reimportable JSON (OUT= for file)
 make bulk-import             # Bulk import services/DNS/HAProxy from JSON or CSV (BULK_FILE= [DRY_RUN=1])
 make cert-list               # List certificates with expiry info (FILTER= EXPIRING=<days>)
 make cert-import             # Import cert+key PEM files (CERT_NAME= CERT_FILE= KEY_FILE= [CERT_TYPE=])
@@ -1339,9 +1342,9 @@ make clean              # Clean up Docker resources
 ### Self-Signed Certificate Errors
 If using self-signed certificates, add to your `.env`:
 ```bash
-NODE_TLS_REJECT_UNAUTHORIZED=0
-NODE_NO_WARNINGS=1
+PFSENSE_INSECURE_TLS=1
 ```
+> `NODE_TLS_REJECT_UNAUTHORIZED=0` is no longer supported — it disables TLS globally for the process. `PFSENSE_INSECURE_TLS=1` limits the bypass to pfSense API calls only and prints a visible warning.
 
 ### API Connection Issues
 - Verify pfSense API is enabled (System > API)
@@ -1398,9 +1401,14 @@ netstat -rn | grep 10.5.0
 - Permanent fix: ensure the watchdog is deployed — `ensure_monitor_route()` restores it on every run
 - On pfSense, add a Shellcmd (`Services > Shellcmd`, Type: shellcmd): `route add -host 1.1.1.1 10.5.0.1` so the route survives reboots before the first watchdog run
 
+**Watchdog not running (cron missing after pfSense upgrade):**
+- Check: `ssh root@pfsense 'crontab -l | grep nordvpn'` — if empty, the cron was wiped
+- Re-deploy: `scp scripts/nordvpn-wg-watchdog.sh root@pfsense:/usr/local/bin/ && ssh root@pfsense "chmod +x /usr/local/bin/nordvpn-wg-watchdog.sh && crontab -l 2>/dev/null | { cat; echo '* * * * * /usr/local/bin/nordvpn-wg-watchdog.sh'; } | crontab -"`
+- pfSense upgrades wipe `/etc/cron.d/` — use root crontab, not cron.d (see deploy instructions above)
+
 **Watchdog escalation never fires (gateway stuck down > 8 min):**
 - Verify the cron job runs from `/usr/local/bin/nordvpn-wg-watchdog.sh` (not `/usr/local/sbin/`)
-- Check: `cat /etc/cron.d/nordvpn-wg-watchdog`
+- Check: `ssh root@pfsense 'crontab -l | grep nordvpn'`
 - Check state files: `down-since` age must exceed 500s; `last-reset` must exist (drives backoff timer)
 - Manually force: backdate the down-since file: `echo $(( $(date +%s) - 600 )) > /var/db/nordvpn-wg-down-since` then run the watchdog directly
 
@@ -1440,7 +1448,7 @@ docker-compose build
 
 - **API Version**: pfSense REST API v2
 - **Authentication**: KeyAuth with `x-api-key` header
-- **Node.js**: 20-alpine
+- **Node.js**: 26-alpine
 - **Dependencies**: axios, commander, dotenv
 - **Endpoints Used**:
   - `/api/v2/services/dns_resolver/*` - DNS management
